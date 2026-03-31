@@ -1,0 +1,7 @@
+[1G[0K⠙[1G[0K
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K⠙[1G[0K8:26:39 AM [express] serving on port 5000
+8:27:59 AM [express] GET /api/conversations 200 in 23ms :: [{"id":2,"title":"Session 290","createdAt":"2026-03-16T02:17:08.490Z"},{"id":1,"title":"Welcome to Aether OS","createdAt":"2026-02-19T04:40:34.812Z"}]
+8:28:13 AM [express] GET /api/conversations/2 200 in 24ms :: {"id":2,"title":"Session 290","createdAt":"2026-03-16T02:17:08.490Z","messages":[]}
