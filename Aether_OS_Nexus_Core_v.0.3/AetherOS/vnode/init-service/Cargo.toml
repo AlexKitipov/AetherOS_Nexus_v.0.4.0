@@ -1,0 +1,19 @@
+[package]
+name = "init-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+linked_list_allocator = "0.10"
+aetheros_common = { path = "../../common" }
+serde = { workspace = true, optional = true }
+postcard = { version = "1.0", default-features = false, features = ["alloc"] }
+
+[features]
+default = ["alloc"]
+alloc = []
+serde = ["dep:serde"]
+
+[[bin]]
+name = "init-service"
+path = "src/main.rs"

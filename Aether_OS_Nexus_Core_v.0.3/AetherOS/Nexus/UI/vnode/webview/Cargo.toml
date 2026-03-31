@@ -1,0 +1,20 @@
+[package]
+name = "webview"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aetheros_common = { path = "../../../../common" }
+serde = { workspace = true, optional = true }
+postcard = { version = "1.0.8", default-features = false, features = ["alloc"] }
+linked_list_allocator = "0.10.5"
+
+[features]
+default = ["alloc"]
+alloc = []
+serde = ["dep:serde"]
+
+# The binary target for the V-Node itself
+[[bin]]
+name = "webview"
+path = "src/main.rs"
