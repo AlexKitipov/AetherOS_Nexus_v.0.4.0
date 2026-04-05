@@ -69,6 +69,7 @@ SECTIONS
         . = ALIGN(16);
         PROVIDE(__stack_start = .);
         KEEP(*(.bss.stack))
+        . = ALIGN(16);
         PROVIDE(__stack_end = .);
 
         . = ALIGN(4K);
@@ -128,3 +129,5 @@ SECTIONS
 
 /* Fail the link if any section spills out of the RAM placement window. */
 ASSERT(__kernel_end <= ORIGIN(RAM) + LENGTH(RAM), "Kernel image exceeds RAM region");
+ASSERT(((__stack_start & 0xF) == 0), "Boot stack is not 16-byte aligned");
+ASSERT(((__stack_end & 0xF) == 0), "Boot stack end is not 16-byte aligned");

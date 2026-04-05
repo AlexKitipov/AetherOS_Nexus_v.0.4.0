@@ -13,6 +13,12 @@ use bootloader::BootInfo; // Import BootInfo from the bootloader_api crate
 use aetheros_kernel::{init, task};
 
 #[cfg(target_os = "none")]
+/// Dedicated early-boot kernel stack used before allocator/scheduler startup.
+///
+/// Tooling/debug contract:
+/// - physical range is exported by linker symbols `stack_start..stack_end`
+/// - size is fixed at build time for deterministic early backtraces
+/// - entry assembly aligns `rsp` to 16 bytes before the first Rust call
 const KERNEL_BOOT_STACK_SIZE: usize = 4096 * 4;
 
 #[cfg(target_os = "none")]
@@ -21,6 +27,7 @@ const _: () = {
     // Keep the static boot stack size a multiple of 16 so the computed
     // stack-top can always be aligned without crossing the allocation.
     assert!(KERNEL_BOOT_STACK_SIZE % 16 == 0);
+    assert!(KERNEL_BOOT_STACK_SIZE >= 4096);
 };
 
 #[cfg(target_os = "none")]
@@ -32,17 +39,18 @@ _start:
     # bootloader_api 0.11 x86_64 handoff contract:
     # rdi = *mut BootInfo
     # SysV ABI notes:
-    # - rbx is callee-saved, so we can carry BootInfo while switching stacks.
     # - We must not call into Rust before setting rsp because Rust functions can
     #   legally emit a prologue that touches stack memory.
     # - SysV ABI requires a cleared direction flag on function entry.
     # - SysV ABI requires 16-byte alignment before a `call`.
-    mov rbx, rdi
+    # Debugging/tooling invariant:
+    # - rsp always starts from the deterministic top of `.bss.stack`.
+    # - stack grows downward into zero-initialized reserved bytes only.
     cld
     lea rsp, [{stack} + {size}]
     and rsp, -16
     xor rbp, rbp
-    mov rdi, rbx
+    # Preserve bootloader's first argument register contract (rdi = BootInfo*).
     call kernel_entry
 1:
     hlt
@@ -74,6 +82,8 @@ pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
     // SAFETY: `_start` passes the handoff pointer in `rdi` using the SysV ABI.
     // We validate non-null first, then materialize exactly one mutable reference
     // to preserve bootloader's unique-mutable-access contract for BootInfo.
+    // Invariant needed by startup diagnostics and backtracing:
+    // the boot stack is fully valid/mapped before entering this Rust function.
     let boot_info = unsafe { boot_info_from_ptr(boot_info_ptr) };
 
     // BootInfo layout assumptions (bootloader_api 0.11.15):
