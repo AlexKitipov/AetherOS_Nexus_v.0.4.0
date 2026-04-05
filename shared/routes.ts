@@ -14,6 +14,45 @@ export const errorSchemas = {
   }),
 };
 
+const kernelModuleSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  mutable: z.boolean(),
+  state: z.enum(['active', 'inactive']),
+});
+
+const kernelTaskSchema = z.object({
+  id: z.string(),
+  command: z.string(),
+  status: z.enum(['queued', 'running', 'completed']),
+  createdAt: z.string(),
+});
+
+const kernelCommandSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('inspect.status') }),
+  z.object({ type: z.literal('inspect.processes') }),
+  z.object({
+    type: z.literal('task.run'),
+    payload: z.object({
+      command: z.string().min(1),
+    }),
+  }),
+  z.object({
+    type: z.literal('task.manage'),
+    payload: z.object({
+      action: z.enum(['stop', 'resume']),
+      taskId: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal('module.manage'),
+    payload: z.object({
+      moduleId: z.string(),
+      enabled: z.boolean(),
+    }),
+  }),
+]);
+
 export const api = {
   chat: {
     listConversations: {
@@ -52,7 +91,7 @@ export const api = {
       input: z.object({ content: z.string() }),
       responses: {
         // This endpoint streams, but initially returns a 200 OK to start the stream
-        200: z.void(), 
+        200: z.void(),
       },
     },
   },
@@ -69,7 +108,44 @@ export const api = {
         }),
       },
     },
-  }
+  },
+  kernel: {
+    status: {
+      method: 'GET' as const,
+      path: '/api/kernel/status' as const,
+      responses: {
+        200: z.object({
+          cpu: z.number(),
+          memory: z.number(),
+          modules: z.array(kernelModuleSchema),
+          uptime: z.number(),
+          taskCount: z.number(),
+        }),
+      },
+    },
+    processes: {
+      method: 'GET' as const,
+      path: '/api/kernel/processes' as const,
+      responses: {
+        200: z.array(kernelTaskSchema),
+      },
+    },
+    command: {
+      method: 'POST' as const,
+      path: '/api/kernel/command' as const,
+      input: kernelCommandSchema,
+      responses: {
+        200: z.object({
+          ok: z.boolean(),
+          channel: z.literal('ui.bridge'),
+          type: z.string(),
+          timestamp: z.string(),
+          data: z.unknown().optional(),
+          error: z.string().optional(),
+        }),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {

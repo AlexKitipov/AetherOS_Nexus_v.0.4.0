@@ -1,8 +1,12 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { type Server } from "http";
 import { registerChatRoutes } from "./replit_integrations/chat/routes";
 import { chatStorage } from "./replit_integrations/chat/storage";
+import { createInterfaceSession, NexusKernelBridge } from "./kernel/bridge";
+import { api } from "@shared/routes";
+
+const kernelBridge = new NexusKernelBridge();
+const uiSession = createInterfaceSession("operator");
 
 export async function registerRoutes(
   httpServer: Server,
@@ -11,19 +15,32 @@ export async function registerRoutes(
   // Register the AI Chat integration routes
   registerChatRoutes(app);
 
-  // System Status Mock API
-  app.get("/api/system/status", (req, res) => {
-    // Simulate fluctuating system stats
-    const cpu = 10 + Math.random() * 20; // 10-30%
-    const memory = 25 + Math.random() * 10; // 25-35%
-    const uptime = process.uptime();
-    
+  // Legacy system status endpoint kept for compatibility.
+  app.get(api.system.status.path, (_req, res) => {
+    const status = kernelBridge.getStatusSnapshot();
+
     res.json({
-      cpu: Math.round(cpu),
-      memory: Math.round(memory),
-      modules: ["Hybrid Kernel", "AI Core", "Driver Sandbox", "Network Stack"],
-      uptime: Math.round(uptime)
+      cpu: status.cpu,
+      memory: status.memory,
+      modules: status.modules.map((module) => module.name),
+      uptime: status.uptime,
     });
+  });
+
+  app.get(api.kernel.status.path, (_req, res) => {
+    res.json(kernelBridge.getStatusSnapshot());
+  });
+
+  app.get(api.kernel.processes.path, (_req, res) => {
+    res.json(kernelBridge.getTaskSnapshot());
+  });
+
+  app.post(api.kernel.command.path, (req, res) => {
+    const command = req.body;
+    const response = kernelBridge.dispatch(uiSession, command);
+
+    const status = response.ok ? 200 : 403;
+    res.status(status).json(response);
   });
 
   // Seed initial conversation if none exists
