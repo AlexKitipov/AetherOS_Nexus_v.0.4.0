@@ -145,7 +145,21 @@ pub unsafe fn init_active_paging(physical_memory_offset: VirtAddr) -> OffsetPage
     let phys = level_4_table_frame.start_address();
     let virt = physical_memory_offset + phys.as_u64();
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
-    let level_4_table = &mut *page_table_ptr;
+
+    assert!(
+        !page_table_ptr.is_null(),
+        "direct-map translation produced a null PML4 pointer"
+    );
+    assert!(
+        (page_table_ptr as usize) % core::mem::align_of::<PageTable>() == 0,
+        "direct-map translation produced a misaligned PML4 pointer"
+    );
+
+    // SAFETY: The caller guarantees `physical_memory_offset` is a valid direct map
+    // for all physical frames for the full `'static` mapper lifetime. CR3 always
+    // points at a 4KiB-aligned active PML4 frame, and the checks above reject
+    // null/misaligned translations before creating a mutable reference.
+    let level_4_table = unsafe { &mut *page_table_ptr };
     OffsetPageTable::new(level_4_table, physical_memory_offset)
 }
 

@@ -124,12 +124,17 @@ pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
 /// - no other mutable references exist while this reference is alive
 #[cfg(target_os = "none")]
 unsafe fn boot_info_from_ptr<'a>(boot_info_ptr: *mut BootInfo) -> &'a mut BootInfo {
-    // SAFETY: caller guarantees validity and uniqueness as documented above.
-    unsafe {
-        core::ptr::NonNull::new(boot_info_ptr)
-            .expect("bootloader contract violated: BootInfo pointer was null")
-            .as_mut()
-    }
+    let ptr = core::ptr::NonNull::new(boot_info_ptr)
+        .expect("bootloader contract violated: BootInfo pointer was null");
+
+    assert!(
+        (ptr.as_ptr() as usize) % core::mem::align_of::<BootInfo>() == 0,
+        "bootloader contract violated: BootInfo pointer alignment was invalid"
+    );
+
+    // SAFETY: caller guarantees validity + uniqueness for the full lifetime,
+    // and we validated non-null + alignment before materializing `&mut`.
+    unsafe { ptr.as_ptr().as_mut().expect("non-null checked above") }
 }
 
 #[cfg(not(target_os = "none"))]
