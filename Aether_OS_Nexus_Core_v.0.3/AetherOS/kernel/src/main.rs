@@ -98,6 +98,8 @@ pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
     // Enter an infinite loop to keep the kernel running.
     // In a real OS, this would be the idle loop, scheduling tasks.
     loop {
+        aetheros_kernel::dev_interface::poll_once();
+
         if task::scheduler::take_reschedule_request() {
             task::schedule(); // Perform scheduling only when requested (e.g. from timer IRQ)
         }
