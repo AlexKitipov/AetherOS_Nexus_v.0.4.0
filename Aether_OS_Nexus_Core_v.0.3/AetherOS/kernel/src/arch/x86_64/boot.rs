@@ -7,7 +7,7 @@ use core::arch::x86_64::__cpuid;
 #[cfg(target_arch = "x86_64")]
 use core::arch::global_asm;
 
-use bootloader_api::BootInfo;
+use bootloader::BootInfo;
 
 use super::{gdt, idt, paging};
 use crate::{heap, interrupts, memory};
@@ -266,14 +266,18 @@ pub fn entry_point(boot_info: &'static mut BootInfo) {
     }
 
     memory::init(&boot_info.memory_regions);
+    let physical_memory_offset = match boot_info.physical_memory_offset.into_option() {
+        Some(value) => value,
+        None => {
+            kprintln!("[kernel] boot ERROR: missing physical memory offset from BootInfo.");
+            h_loop();
+        }
+    };
+    paging::configure_physical_memory_offset(physical_memory_offset);
     memory::init_virtual_memory_bootstrap();
     kprintln!("[kernel] boot: Memory map wired into frame allocator.");
 
-    let physical_memory_offset = boot_info
-        .physical_memory_offset
-        .into_option()
-        .unwrap_or(0);
-    if physical_memory_offset != 0 {
+    {
         let physical_memory_offset = x86_64::VirtAddr::new(physical_memory_offset);
         unsafe {
             let _ = paging::init_mapper(physical_memory_offset);
@@ -292,6 +296,7 @@ pub fn entry_point(boot_info: &'static mut BootInfo) {
 
         match heap_result {
             Some(Ok(())) => {
+                memory::finalize_allocator_init();
                 heap::init_heap();
                 kprintln!("[kernel] boot: Heap is ready. Dynamic allocation enabled.");
             }
@@ -316,16 +321,10 @@ pub fn entry_point(boot_info: &'static mut BootInfo) {
 
     match architecture_init(config) {
         Ok(()) => {
-            if physical_memory_offset != 0 {
-                kprintln!(
-                    "[kernel] boot: Direct map physical memory offset = {:#x}.",
-                    physical_memory_offset
-                );
-            } else {
-                kprintln!(
-                    "[kernel] boot: No physical memory offset provided; using identity fallback."
-                );
-            }
+            kprintln!(
+                "[kernel] boot: Direct map physical memory offset = {:#x}.",
+                physical_memory_offset
+            );
             kprintln!("[kernel] boot: System is ready.");
             kernel_main();
         }

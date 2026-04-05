@@ -4,6 +4,7 @@
 
 use x86_64::registers::control::Cr2;
 use x86_64::PrivilegeLevel;
+use x86_64::instructions::interrupts;
 use x86_64::structures::idt::{
     InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode,
 };
@@ -15,29 +16,50 @@ static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
 /// Initializes the IDT with core CPU exception handlers and loads it via `lidt`.
 pub fn init() {
-    unsafe {
+    interrupts::without_interrupts(|| unsafe {
+        // Early boot runs on a single core before task scheduling starts.
+        // We fully populate CPU exception entries before `lidt` so no interrupt
+        // can observe partially initialized descriptors.
         kprintln!("[kernel] idt: Initializing IDT...");
 
-        IDT.breakpoint.set_handler_fn(breakpoint_handler);
-        IDT.page_fault.set_handler_fn(page_fault_handler);
-        IDT.general_protection_fault
+        let idt = &mut *core::ptr::addr_of_mut!(IDT);
+
+        idt.breakpoint.set_handler_fn(breakpoint_handler);
+        idt.page_fault.set_handler_fn(page_fault_handler);
+        idt.general_protection_fault
             .set_handler_fn(general_protection_fault_handler);
-        IDT.double_fault
+        // SAFETY: `DOUBLE_FAULT_IST_INDEX` points to an IST slot initialized by
+        // `gdt::init()` before IDT setup, so loading this stack index is valid.
+        idt.double_fault
             .set_handler_fn(double_fault_handler)
             .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
-        IDT[0x80]
+        idt[0x80]
             .set_handler_fn(syscall_interrupt_handler)
             .set_privilege_level(PrivilegeLevel::Ring3);
-        IDT.load();
+        // Safety invariant: `lidt` is executed only after all required entries
+        // are configured, and while interrupts are disabled.
+        idt.load();
         kprintln!("[kernel] idt: IDT loaded.");
-    }
+    })
 }
 
 /// Registers an external IRQ handler into the IDT at a given vector.
 pub fn set_irq_handler(vector: u8, handler: extern "x86-interrupt" fn(InterruptStackFrame)) {
-    unsafe {
-        IDT[vector as usize].set_handler_fn(handler);
-    }
+    interrupts::without_interrupts(|| unsafe {
+        // We only mutate the table with interrupts disabled to avoid observing
+        // partially written entries.
+        let idt = &mut *core::ptr::addr_of_mut!(IDT);
+        idt[vector as usize].set_handler_fn(handler);
+    });
+}
+
+/// Reloads IDT register from the global table after descriptor updates.
+pub fn reload() {
+    interrupts::without_interrupts(|| unsafe {
+        // The descriptor table has `'static` lifetime and can be safely reloaded.
+        let idt = &*core::ptr::addr_of!(IDT);
+        idt.load();
+    });
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
@@ -105,6 +127,8 @@ extern "x86-interrupt" fn double_fault_handler(
     kprintln!("[kernel] EXCEPTION: DOUBLE FAULT");
     kprintln!("[kernel] Error Code: {}", error_code);
     kprintln!("[kernel] Stack Frame:\n{:#?}", stack_frame);
+    // NOTE: x86_64 v0.14 currently expects the double-fault handler type to be
+    // `extern "x86-interrupt" fn(...) -> !`.
     hlt_loop();
 }
 

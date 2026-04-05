@@ -8,8 +8,19 @@ use core::panic::PanicInfo;
 #[cfg(target_os = "none")]
 use core::arch::global_asm;
 #[cfg(target_os = "none")]
-use bootloader_api::BootInfo; // Import BootInfo from the bootloader_api crate
+use bootloader::BootInfo; // Import BootInfo from the bootloader_api crate
 use aetheros_kernel::{init, task};
+
+#[cfg(target_os = "none")]
+const KERNEL_BOOT_STACK_SIZE: usize = 4096 * 4;
+
+#[cfg(target_os = "none")]
+const _: () = {
+    // SysV x86_64 requires 16-byte stack alignment at call boundaries.
+    // Keep the static boot stack size a multiple of 16 so the computed
+    // stack-top can always be aligned without crossing the allocation.
+    assert!(KERNEL_BOOT_STACK_SIZE % 16 == 0);
+};
 
 #[cfg(target_os = "none")]
 global_asm!(
@@ -17,45 +28,62 @@ global_asm!(
     .section .text._start, "ax"
     .global _start
 _start:
+    # bootloader_api 0.11 x86_64 handoff contract:
+    # rdi = *mut BootInfo
+    # SysV ABI notes:
+    # - rbx is callee-saved, so we can carry BootInfo while switching stacks.
+    # - We must not call into Rust before setting rsp because Rust functions can
+    #   legally emit a prologue that touches stack memory.
+    # - SysV ABI requires a cleared direction flag on function entry.
+    # - SysV ABI requires 16-byte alignment before a `call`.
     mov rbx, rdi
-    call init_stack
+    cld
+    lea rsp, [{stack} + {size}]
+    and rsp, -16
+    xor rbp, rbp
     mov rdi, rbx
     call kernel_entry
 1:
     hlt
     jmp 1b
-"#
+"#,
+    stack = sym STACK,
+    size = const KERNEL_BOOT_STACK_SIZE,
 );
 
 #[cfg(target_os = "none")]
-#[repr(align(16))]
-struct KernelStack([u8; 4096 * 4]);
+#[repr(C, align(16))]
+struct KernelStack([u8; KERNEL_BOOT_STACK_SIZE]);
 
 #[cfg(target_os = "none")]
 #[no_mangle]
 #[link_section = ".bss.stack"]
-static mut STACK: KernelStack = KernelStack([0; 4096 * 4]);
-
-/// Initializes the bootstrap kernel stack and enforces SysV 16-byte alignment.
-#[cfg(target_os = "none")]
-#[no_mangle]
-pub unsafe extern "C" fn init_stack() {
-    core::arch::asm!(
-        "lea rsp, [{stack} + {size}]",
-        "and rsp, -16",
-        stack = sym STACK,
-        size = const 4096 * 4,
-        options(nostack, preserves_flags)
-    );
-}
+#[used]
+static mut STACK: KernelStack = KernelStack([0; KERNEL_BOOT_STACK_SIZE]);
 
 /// Kernel entry point in `no_std`/`no_main` mode.
 ///
-/// We export `_start` with `#[no_mangle]` so the symbol name stays exactly `_start`
-/// and the bootloader/CPU can jump to it directly.
-#[no_mangle] // Don't mangle the name of this function, so the bootloader can find it
+/// Calling convention contract:
+/// - `_start` (defined in global assembly above) receives `rdi = *mut BootInfo`.
+/// - `_start` forwards that raw pointer unchanged to this function.
+/// - this function is `extern "C"` so register/stack ABI matches the handoff.
+#[no_mangle]
 #[cfg(target_os = "none")]
-pub extern "C" fn kernel_entry(boot_info: &'static mut BootInfo) -> ! {
+pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
+    // SAFETY: bootloader_api's handoff contract guarantees:
+    // - `boot_info_ptr` is non-null and points to a valid BootInfo.
+    // - The kernel receives unique mutable access during early boot.
+    // We convert exactly once here and do not create competing mutable aliases.
+    let boot_info = unsafe {
+        core::ptr::NonNull::new(boot_info_ptr)
+            .expect("bootloader contract violated: BootInfo pointer was null")
+            .as_mut()
+    };
+
+    // BootInfo layout assumptions (bootloader_api 0.11.15):
+    // - `memory_regions` is passed by shared reference into allocator bootstrap.
+    // - `framebuffer` is `Optional<FrameBuffer>` and is converted via `as_mut()`.
+    // - `physical_memory_offset` is `Optional<u64>` and must be unwrapped via `into_option()`.
     // Kernel early initialization starts here.
     // Initialize all core kernel modules.
     // We pass the boot_info.memory_regions to the kernel's init function.
@@ -73,7 +101,9 @@ pub extern "C" fn kernel_entry(boot_info: &'static mut BootInfo) -> ! {
         if task::scheduler::take_reschedule_request() {
             task::schedule(); // Perform scheduling only when requested (e.g. from timer IRQ)
         }
-        x86_64::instructions::hlt(); // Halt the CPU until the next interrupt
+        // Atomically (re-)enable interrupts and halt to avoid a race where an
+        // IRQ arrives between the flag check above and a plain `hlt`.
+        x86_64::instructions::interrupts::enable_and_hlt();
     }
 }
 

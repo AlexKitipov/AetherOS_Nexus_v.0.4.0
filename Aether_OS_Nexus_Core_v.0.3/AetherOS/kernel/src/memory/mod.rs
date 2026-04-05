@@ -2,7 +2,7 @@ pub mod frame_allocator;
 pub mod page_allocator;
 
 use crate::kprintln;
-use bootloader_api::info::MemoryRegions;
+use bootloader::info::{MemoryRegionKind, MemoryRegions};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use spin::Mutex;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
@@ -20,6 +20,12 @@ static USED_MEMORY_ESTIMATE_BYTES: AtomicUsize = AtomicUsize::new(0);
 ///   the frame allocator.
 pub fn init(memory_regions: &'static MemoryRegions) {
     kprintln!("[kernel] memory: Initializing memory modules...");
+    let validation = validate_boot_memory_regions(memory_regions);
+    assert!(
+        validation.usable_region_count > 0 && validation.usable_bytes >= 4096,
+        "[kernel] memory: boot memory map has no usable RAM"
+    );
+
     let total = memory_regions
         .iter()
         .map(|region| (region.end.saturating_sub(region.start)) as usize)
@@ -35,26 +41,33 @@ pub fn init(memory_regions: &'static MemoryRegions) {
     }
     kprintln!("[kernel] memory: BootInfoFrameAllocator wired from BootInfo map.");
 
-    // Initialize the page allocator with the same global frame allocator instance.
-    let mut slot = FRAME_ALLOCATOR.lock();
-    let frame_allocator = slot
-        .as_mut()
-        .expect("frame allocator must be initialized before page allocator");
-    page_allocator::PageAllocator::init(frame_allocator);
-    kprintln!("[kernel] memory: PageAllocator initialized.");
-
     kprintln!("[kernel] memory: All memory modules initialized.");
 }
 
 /// Finalize virtual-memory bootstrap once bootloader handoff information
 /// (direct-map offset, current CR3 tables) is available.
 pub fn init_virtual_memory_bootstrap() {
+    if crate::arch::x86_64::paging::physical_memory_offset().is_none() {
+        kprintln!(
+            "[kernel] memory WARNING: physical memory offset not configured; using compatibility higher-half bootstrap map."
+        );
+    }
     crate::arch::x86_64::paging::init_bootstrap_mappings(
         crate::arch::x86_64::paging::EARLY_IDENTITY_LIMIT,
     );
     kprintln!(
         "[kernel] memory: Identity + higher-half bootstrap mappings synchronized."
     );
+}
+
+/// Finalizes bootstrap allocators after direct-map paging is confirmed active.
+pub fn finalize_allocator_init() {
+    let mut slot = FRAME_ALLOCATOR.lock();
+    let frame_allocator = slot
+        .as_mut()
+        .expect("frame allocator must be initialized before page allocator");
+    page_allocator::PageAllocator::init(frame_allocator);
+    kprintln!("[kernel] memory: PageAllocator initialized.");
 }
 
 /// Allocates one physical frame from the global bootstrap frame allocator.
@@ -97,4 +110,73 @@ pub fn total_memory() -> usize {
 /// Returns a conservative free-memory estimate for runtime metrics.
 pub fn free_memory() -> usize {
     total_memory().saturating_sub(USED_MEMORY_ESTIMATE_BYTES.load(Ordering::Acquire))
+}
+
+struct MemoryValidation {
+    usable_region_count: usize,
+    usable_bytes: usize,
+}
+
+fn validate_boot_memory_regions(memory_regions: &'static MemoryRegions) -> MemoryValidation {
+    let mut usable_region_count = 0usize;
+    let mut usable_bytes = 0usize;
+    let mut last_end = 0u64;
+    let mut unknown_region_count = 0usize;
+
+    for (index, region) in memory_regions.iter().enumerate() {
+        if region.end <= region.start {
+            kprintln!(
+                "[kernel] memory WARNING: region #{} has invalid bounds {:#x}..{:#x} ({:?}).",
+                index,
+                region.start,
+                region.end,
+                region.kind
+            );
+            continue;
+        }
+
+        if index > 0 && region.start < last_end {
+            kprintln!(
+                "[kernel] memory WARNING: out-of-order/overlapping region #{} start={:#x} < prev_end={:#x}.",
+                index,
+                region.start,
+                last_end
+            );
+        }
+        last_end = region.end.max(last_end);
+
+        match region.kind {
+            MemoryRegionKind::Usable => {
+                usable_region_count += 1;
+                usable_bytes = usable_bytes.saturating_add((region.end - region.start) as usize);
+            }
+            MemoryRegionKind::UnknownUefi(_) | MemoryRegionKind::UnknownBios(_) => {
+                unknown_region_count += 1;
+                kprintln!(
+                    "[kernel] memory WARNING: unknown region type at #{}, {:#x}..{:#x}; treating as reserved.",
+                    index,
+                    region.start,
+                    region.end
+                );
+            }
+            _ => {}
+        }
+    }
+
+    kprintln!(
+        "[kernel] memory: validated map (usable regions: {}, usable bytes: {}).",
+        usable_region_count,
+        usable_bytes
+    );
+    if unknown_region_count > 0 {
+        kprintln!(
+            "[kernel] memory: {} unknown firmware region(s) excluded from allocation.",
+            unknown_region_count
+        );
+    }
+
+    MemoryValidation {
+        usable_region_count,
+        usable_bytes,
+    }
 }
