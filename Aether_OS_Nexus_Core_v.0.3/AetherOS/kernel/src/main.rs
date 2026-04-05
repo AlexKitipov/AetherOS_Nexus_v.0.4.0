@@ -9,6 +9,7 @@ use core::panic::PanicInfo;
 use core::arch::global_asm;
 #[cfg(target_os = "none")]
 use bootloader::BootInfo; // Import BootInfo from the bootloader_api crate
+#[cfg(target_os = "none")]
 use aetheros_kernel::{init, task};
 
 #[cfg(target_os = "none")]
@@ -70,15 +71,10 @@ static mut STACK: KernelStack = KernelStack([0; KERNEL_BOOT_STACK_SIZE]);
 #[no_mangle]
 #[cfg(target_os = "none")]
 pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
-    // SAFETY: bootloader_api's handoff contract guarantees:
-    // - `boot_info_ptr` is non-null and points to a valid BootInfo.
-    // - The kernel receives unique mutable access during early boot.
-    // We convert exactly once here and do not create competing mutable aliases.
-    let boot_info = unsafe {
-        core::ptr::NonNull::new(boot_info_ptr)
-            .expect("bootloader contract violated: BootInfo pointer was null")
-            .as_mut()
-    };
+    // SAFETY: `_start` passes the handoff pointer in `rdi` using the SysV ABI.
+    // We validate non-null first, then materialize exactly one mutable reference
+    // to preserve bootloader's unique-mutable-access contract for BootInfo.
+    let boot_info = unsafe { boot_info_from_ptr(boot_info_ptr) };
 
     // BootInfo layout assumptions (bootloader_api 0.11.15):
     // - `memory_regions` is passed by shared reference into allocator bootstrap.
@@ -106,6 +102,23 @@ pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
         // Atomically (re-)enable interrupts and halt to avoid a race where an
         // IRQ arrives between the flag check above and a plain `hlt`.
         x86_64::instructions::interrupts::enable_and_hlt();
+    }
+}
+
+/// Converts the raw bootloader handoff pointer into a unique `BootInfo` ref.
+///
+/// # Safety
+/// Caller must uphold the bootloader handoff contract:
+/// - pointer is valid and non-null
+/// - pointer refers to initialized `BootInfo` data
+/// - no other mutable references exist while this reference is alive
+#[cfg(target_os = "none")]
+unsafe fn boot_info_from_ptr<'a>(boot_info_ptr: *mut BootInfo) -> &'a mut BootInfo {
+    // SAFETY: caller guarantees validity and uniqueness as documented above.
+    unsafe {
+        core::ptr::NonNull::new(boot_info_ptr)
+            .expect("bootloader contract violated: BootInfo pointer was null")
+            .as_mut()
     }
 }
 
