@@ -20,6 +20,7 @@ examples = { path = "./examples", optional = true }
 [features]
 default = ["alloc"]
 alloc = []
+std = ["serde/std", "postcard/use-std", "libnexus-net/std"]
 serde = []
 # Feature to enable `smoltcp` related items if needed directly in common
 smoltcp_enabled = ["dep:smoltcp"]
