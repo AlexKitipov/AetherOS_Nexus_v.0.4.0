@@ -317,6 +317,28 @@ pub fn get_current_task_id() -> u64 {
     *CURRENT_TASK_ID.lock()
 }
 
+
+/// Returns the total number of registered tasks.
+pub fn task_count() -> usize {
+    TASKS.lock().len()
+}
+
+/// Returns the number of runnable tasks currently queued.
+pub fn runnable_count() -> usize {
+    RUN_QUEUE.lock().len()
+}
+
+/// Allocates a fresh task identifier by scanning current scheduler state.
+pub fn allocate_task_id() -> u64 {
+    TASKS
+        .lock()
+        .keys()
+        .copied()
+        .max()
+        .map(|id| id.saturating_add(1))
+        .unwrap_or(1)
+}
+
 /// Returns the detected number of logical CPU cores.
 ///
 /// The value is clamped to at least 1 to provide a safe fallback on platforms

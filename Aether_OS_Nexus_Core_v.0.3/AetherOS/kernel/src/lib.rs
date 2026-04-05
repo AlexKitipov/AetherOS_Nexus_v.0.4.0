@@ -29,6 +29,7 @@ pub mod usercopy;
 pub mod config;
 pub mod network;
 pub mod runtime;
+pub mod dev_interface;
 pub mod snapshot_engine;
 
 /// Initialize all kernel subsystems in a deterministic startup order.
@@ -129,6 +130,9 @@ fn init_runtime_subsystems() {
     kprintln!("[kernel] Capability system initialized.");
     runtime::init();
     kprintln!("[kernel] Runtime services initialized.");
+
+    dev_interface::init();
+    kprintln!("[kernel] Developer interface bridge initialized.");
 
     network::init();
     kprintln!("[kernel] Network stack initialized.");
