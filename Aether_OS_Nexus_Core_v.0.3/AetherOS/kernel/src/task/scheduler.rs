@@ -181,6 +181,10 @@ pub fn kill_all() {
 /// where taking scheduler locks directly can deadlock.
 #[inline]
 pub fn request_reschedule_from_irq() {
+    // Invariant: IRQ handlers only set this flag; they never clear it.
+    // The main scheduler loop is the single clear point via
+    // `take_reschedule_request`, which makes reschedule intent observable and
+    // deterministic for diagnostics.
     RESCHEDULE_REQUESTED.store(true, Ordering::Release);
 }
 
@@ -194,6 +198,12 @@ pub fn request_reschedule() {
 #[inline]
 pub fn take_reschedule_request() -> bool {
     RESCHEDULE_REQUESTED.swap(false, Ordering::AcqRel)
+}
+
+/// Returns whether a reschedule is currently pending without clearing it.
+#[inline]
+pub fn reschedule_requested() -> bool {
+    RESCHEDULE_REQUESTED.load(Ordering::Acquire)
 }
 
 fn release_task_resources(task: &TaskControlBlock) {

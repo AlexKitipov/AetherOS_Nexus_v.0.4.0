@@ -38,6 +38,15 @@ pub fn init(
     framebuffer: Option<&'static mut FrameBuffer>,
     physical_memory_offset: Optional<u64>,
 ) {
+    // Responsiveness lifecycle:
+    // - interrupts disabled during descriptor/controller setup
+    // - runtime subsystems initialized with deterministic state
+    // - interrupts enabled only after scheduler + IPC paths are ready
+    //
+    // Keeping this boundary explicit lets higher-level tooling reason about
+    // "pre-responsive" vs "responsive" kernel phases.
+    x86_64::instructions::interrupts::disable();
+
     init_console(framebuffer);
 
     gdt::init();
