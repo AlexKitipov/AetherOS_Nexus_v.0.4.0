@@ -1,11 +1,11 @@
-import { useSystemStatus } from "@/hooks/use-system";
+import { useKernelStatus } from "@/hooks/use-system";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Cpu, Zap, Wifi } from "lucide-react";
 import { useState, useEffect } from "react";
 
 // Helper to accumulate data points for the graph
 export function SystemMonitor() {
-  const { data: status } = useSystemStatus();
+  const { data: status } = useKernelStatus();
   const [history, setHistory] = useState<{ time: string; cpu: number; memory: number }[]>([]);
 
   useEffect(() => {
@@ -107,12 +107,12 @@ export function SystemMonitor() {
         <div className="bg-white/5 p-2 rounded text-center">
           <div>UPTIME</div>
           <div className="text-primary mt-1">
-            {Math.floor(status.uptime / 1000 / 60)} MIN
+            {Math.floor(status.uptime / 60)} MIN
           </div>
         </div>
         <div className="bg-white/5 p-2 rounded text-center">
           <div>THREADS</div>
-          <div className="text-primary mt-1">128 Active</div>
+          <div className="text-primary mt-1">{status.taskCount} Active</div>
         </div>
       </div>
     </div>
