@@ -5,12 +5,14 @@ extern crate alloc;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::ipc::vfs_ipc::VfsMetadata; // Reusing VfsMetadata
 
 /// Represents requests from client V-Nodes to the File Manager V-Node.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FileManagerRequest {
     /// Browse the contents of a directory.
     Browse { path: String },
@@ -31,7 +33,8 @@ pub enum FileManagerRequest {
 }
 
 /// Represents responses from the File Manager V-Node to client V-Nodes.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FileManagerResponse {
     /// Indicates a successful operation, with an optional descriptive message.
     Success(String),

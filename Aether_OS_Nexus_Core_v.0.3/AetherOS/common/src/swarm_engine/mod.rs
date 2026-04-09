@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use core::cmp::min;
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::arp_dht::PeerInfo;
@@ -40,12 +41,14 @@ pub mod global_search {
     extern crate alloc;
 
     use alloc::{string::String, vec::Vec};
+    #[cfg(feature = "serde")]
     use serde::{Deserialize, Serialize};
 
     use crate::arp_dht::PeerInfo;
 
     /// Cross-peer search request emitted by shell/UI services.
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     pub struct SearchRequest {
         pub query: String,
         /// Optional maximum number of results expected by caller.
@@ -66,7 +69,8 @@ pub mod global_search {
     }
 
     /// Basic search result primitive used for IPC/VFS projections.
-    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
     pub struct SearchResult {
         pub cid: [u8; 32],
         pub owner: PeerInfo,
@@ -92,15 +96,18 @@ pub mod global_search {
 }
 
 /// Stable node identity in the Aether Swarm (public key bytes).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeId(pub [u8; 32]);
 
 /// Private key bytes used for local signing/handshake state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeSecret(pub [u8; 32]);
 
 /// Capability flags that define what a remote node is allowed to do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeCapability {
     pub allow_vnode_exec: bool,
     pub allow_snapshot_sync: bool,
@@ -137,7 +144,8 @@ pub type NodeLoad = u16;
 pub type VNodeId = u64;
 
 /// Cluster-level health state used for distributed runtime supervision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NodeHealth {
     Healthy,
     Degraded,
@@ -145,7 +153,8 @@ pub enum NodeHealth {
 }
 
 /// Runtime telemetry payload exchanged between swarm nodes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeTelemetry {
     pub node_id: [u8; 32],
     pub snapshot_hash: SnapshotHash,
@@ -158,7 +167,8 @@ pub struct NodeTelemetry {
 }
 
 /// Bootstrap + identity metadata broadcast during discovery.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NodeInfo {
     pub node_id: NodeId,
     pub transport: PeerInfo,
@@ -166,7 +176,8 @@ pub struct NodeInfo {
 }
 
 /// Immutable V-Node payload transferred for remote execution.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct VNodeImage {
     pub vnode_id: VNodeId,
     pub snapshot_hash: SnapshotHash,
@@ -174,7 +185,8 @@ pub struct VNodeImage {
 }
 
 /// ASP (Aether Swarm Protocol) wire message set.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SwarmMessage {
     Hello(NodeInfo),
     Gossip { snapshot_hash: SnapshotHash, node_load: NodeLoad },
@@ -187,6 +199,7 @@ pub enum SwarmMessage {
     Pong(u64),
 }
 
+#[cfg(feature = "serde")]
 impl SwarmMessage {
     /// Serialize to compact deterministic binary envelope.
     pub fn encode(&self) -> Result<Vec<u8>, SwarmError> {
@@ -209,7 +222,8 @@ impl DiscoveryEndpoints {
 }
 
 /// Minimal secure-channel state used to protect ASP payloads.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SecureChannel {
     pub key: [u8; 32],
     pub nonce: u64,
@@ -251,7 +265,8 @@ impl SecureChannel {
 }
 
 /// Remote execution federation policy for known nodes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FederationPolicy {
     pub local: NodeCapability,
 }

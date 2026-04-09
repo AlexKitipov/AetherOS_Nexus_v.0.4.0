@@ -5,12 +5,14 @@ extern crate alloc;
 use alloc::vec::Vec;
 use alloc::string::String;
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub use crate::logger_ipc::LogLevel;
 
 /// Represents requests from client V-Nodes (e.g., AetherTerminal, other V-Nodes) to the Shell V-Node.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ShellRequest {
     /// Request to execute a command with its arguments.
     ExecuteCommand { command: String, args: Vec<String> },
@@ -27,7 +29,8 @@ pub enum ShellRequest {
 }
 
 /// Represents responses from the Shell V-Node to client V-Nodes.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ShellResponse {
     /// Successful execution of a command, with its output and exit code.
     CommandOutput { stdout: String, stderr: String, exit_code: i32 },

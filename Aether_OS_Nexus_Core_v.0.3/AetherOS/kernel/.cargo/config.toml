@@ -15,3 +15,4 @@ build-std-features = ["compiler-builtins-mem"]
 [target.'cfg(all())']
 rustflags = [
     "--check-cfg=cfg(doc_cfg)"
+]

@@ -99,7 +99,7 @@ From repository root, run:
 
 ```bash
 cd AetherOS
-cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem -Zjson-target-spec
+cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
 ```
 
 Or use the helper:
@@ -136,35 +136,41 @@ This avoids mixing kernel/nightly-only targets with host-side service validation
 If you see:
 
 ```text
-WARNING: `CARGO_MANIFEST_DIR` env variable not set
-error: `.json` target specs require -Zjson-target-spec
+error: unknown `-Z` flag specified: json-target-spec
 ```
 
-you are likely either outside `AetherOS/`, on an unpinned nightly, invoking Cargo without `-Zjson-target-spec`, or mixing
-toolchains so `cargo` and `rustc` resolve to different nightlies. This workspace currently pins `nightly-2024-12-01` because
-newer nightly snapshots can fail during metadata discovery for JSON targets. Use `./scripts/build_kernel_image.sh` (from
-`AetherOS/`) or the full command above.
+you are likely using stale build instructions, outside `AetherOS/`, on an unpinned nightly, or mixing toolchains so `cargo`
+and `rustc` resolve to different nightlies. This workspace pins `nightly-2024-12-01`; use `./scripts/build_kernel_image.sh`
+(from `AetherOS/`) or the full command above (without `-Zjson-target-spec`).
+
+If you see:
+
+```text
+warning: user-defined alias `bootimage` is shadowing an external subcommand
+error: the argument '--release' cannot be used multiple times
+```
+
+you likely have a global Cargo alias (for example in `~/.cargo/config.toml`) named `bootimage`
+that injects `--release`, while your command also passes `--release`.
+This repository intentionally does **not** define a `bootimage` alias.
+
+Recommended fix:
+
+1. Remove or rename the global alias from `~/.cargo/config` or `~/.cargo/config.toml`.
+2. Use the pinned build flow from this repo:
+   - `./scripts/build_kernel_image.sh`
+   - or `cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem`
+
+To inspect active alias configuration:
+
+```bash
+cat ~/.cargo/config
+cat ~/.cargo/config.toml
+```
 
 **Join the Aether. Build the Nexus.**
 
-## 📘 NotebookLM – Централизиран Knowledge Hub
 
-За по‑лесна навигация и работа с документацията по проекта, създадохме специален NotebookLM хъб, който агрегира, структурира и анализира всички ключови материали, свързани с **AetherOS Nexus Core v0.3**.
-
-🔗 **NotebookLM (документация, анализи, отчети):**  
-https://notebooklm.google.com/notebook/be0fd2b7-ed9f-4bbb-9f09-eb93b779d822
-
-### Какво съдържа NotebookLM:
-- Архитектурни описания на AetherOS Nexus Core  
-- Документация за сигурност, изолация и криптография  
-- Мрежови механизми и AetherNet спецификации  
-- Анализи на V‑Node архитектурата  
-- Rust безопасност и системни модули  
-- Инфографики, диаграми и визуализации  
-- Автоматично генерирани обобщения, тестове и обучителни материали  
-- Стратегически отчети и технически breakdown-и  
-
-NotebookLM служи като **централен knowledge hub**, който улеснява разработката, ревюто и разширяването на AetherOS
 
 📘 NotebookLM – Centralized Knowledge Hub
 To simplify navigation and improve workflow across all project documentation, we created a dedicated NotebookLM hub that aggregates, structures, and analyzes all key materials related to AetherOS Nexus Core v0.3.

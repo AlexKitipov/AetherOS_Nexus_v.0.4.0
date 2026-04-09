@@ -33,7 +33,9 @@ impl NexusNetTransport {
     }
 }
 
+#[cfg(feature = "serde")]
 impl SwarmTransport for NexusNetTransport {
+    #[cfg(feature = "serde")]
     fn fetch_chunk_from_peer(&self, peer: &PeerInfo, cid: [u8; 32]) -> Result<Vec<u8>, SwarmError> {
         log(&format!("NexusNetTransport: Fetching chunk {:?} from peer {:?}:{}",
             &cid, peer.ip_address, peer.port));

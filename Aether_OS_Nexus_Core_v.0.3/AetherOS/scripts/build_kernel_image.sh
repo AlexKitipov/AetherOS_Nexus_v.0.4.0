@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KERNEL_PATH="${ROOT_DIR}/target/aetheros-x86_64/release/aetheros-kernel"
+KERNEL_PATH="${ROOT_DIR}/target/x86_64-unknown-none/release/aetheros-kernel"
 RUN_QEMU="${RUN_QEMU:-0}"
 TOOLCHAIN="nightly-2024-12-01"
 
@@ -19,7 +19,12 @@ if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
   echo "qemu-system-x86_64 is not installed. Install QEMU first (example: sudo apt-get install qemu-system-x86)." >&2
 fi
 
-if ! rustup toolchain list | rg -q "^${TOOLCHAIN}"; then
+if command -v rg >/dev/null 2>&1; then
+  RUSTUP_TOOLCHAIN_CHECK="rustup toolchain list | rg -q '^${TOOLCHAIN}'"
+else
+  RUSTUP_TOOLCHAIN_CHECK="rustup toolchain list | grep -q '^${TOOLCHAIN}'"
+fi
+if ! eval "${RUSTUP_TOOLCHAIN_CHECK}"; then
   echo "${TOOLCHAIN} toolchain is not available. Installing ${TOOLCHAIN}..."
   rustup toolchain install "${TOOLCHAIN}"
 fi
@@ -28,9 +33,9 @@ rustup override set "${TOOLCHAIN}"
 rustup component add rust-src --toolchain "${TOOLCHAIN}"
 rustup component add llvm-tools-preview --toolchain "${TOOLCHAIN}"
 
-cargo +"${TOOLCHAIN}" build --release --target .cargo/aetheros-x86_64.json \
-  -Zbuild-std=core,alloc,compiler_builtins \
-  -Zbuild-std-features=compiler-builtins-mem
+cargo +"${TOOLCHAIN}" build --release --target x86_64-unknown-none \
+  -p aetheros-kernel \
+  -p aetheros-kernel
 
 echo "Built kernel artifact: ${KERNEL_PATH}"
 
@@ -51,7 +56,7 @@ if [[ -n "${OBJDUMP_TOOL}" ]]; then
   if [[ -z "${section_table}" ]]; then
     echo "[diag][stage=build_kernel_image.section_validation][status=warn] no section table available; skipping memory map validation" >&2
   else
-    text_start_addr="$(awk '$2==".text.start"{print $4}' <<<"${section_table}" | head -n1)"
+    text_start_addr="$(awk '$2==".text.start" || $2==".text._start"{print $4}' <<<"${section_table}" | head -n1)"
     text_addr="$(awk '$2==".text"{print $4}' <<<"${section_table}" | head -n1)"
     rodata_addr="$(awk '$2==".rodata"{print $4}' <<<"${section_table}" | head -n1)"
     data_addr="$(awk '$2==".data"{print $4}' <<<"${section_table}" | head -n1)"
@@ -80,7 +85,7 @@ else
 fi
 
 echo "Run with:"
-echo "qemu-system-x86_64 -kernel target/aetheros-x86_64/release/aetheros-kernel -serial stdio -no-reboot -d int"
+echo "qemu-system-x86_64 -kernel target/x86_64-unknown-none/release/aetheros-kernel -serial stdio -no-reboot -d int"
 
 if [[ "${RUN_QEMU}" == "1" ]]; then
   qemu-system-x86_64 \
