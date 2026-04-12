@@ -127,3 +127,59 @@
   pointer-events: none;
   z-index: 9999;
 }
+
+:root {
+  --window-border-radius: 6px;
+  --window-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --taskbar-height: 40px;
+  --icon-size: 64px;
+  --accent-color: #4da3ff;
+}
+
+#desktop,
+#taskbar,
+#start-menu,
+#window-layer,
+#context-menu,
+#system-overlay {
+  position: fixed;
+  left: 0;
+  width: 100vw;
+}
+
+#desktop {
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+}
+
+#window-layer {
+  top: 0;
+  height: calc(100vh - var(--taskbar-height));
+  pointer-events: none;
+  z-index: 10;
+}
+
+#taskbar {
+  bottom: 0;
+  height: var(--taskbar-height);
+  z-index: 20;
+}
+
+#start-menu {
+  bottom: var(--taskbar-height);
+  z-index: 30;
+}
+
+#context-menu {
+  top: 0;
+  z-index: 40;
+}
+
+#system-overlay {
+  top: 0;
+  height: 100vh;
+  z-index: 50;
+  pointer-events: none;
+}
