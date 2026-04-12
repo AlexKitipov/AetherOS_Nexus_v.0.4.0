@@ -45,7 +45,7 @@ export default function Desktop() {
       <div className="relative z-10 h-full pb-12 pointer-events-none">
         
         {/* Make windows interactive */}
-        <div className="pointer-events-auto w-full h-full">
+        <div id="window-layer" className="pointer-events-auto w-full h-full">
           <DesktopWindow
             id="chat"
             title="NEXUS_UPLINK // CHAT"

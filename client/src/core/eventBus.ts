@@ -2,7 +2,26 @@ type EventHandler<TPayload = unknown> = (payload: TPayload) => void;
 
 type EventMap = {
   "window.open": { id: string; source?: string };
-  "window.focus": { id: string };
+  "window.focus": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
+  "window.create": {
+    id: string;
+    state?: "normal" | "minimized" | "maximized" | "closed";
+    position?: { x: number; y: number };
+    size?: { width: number; height: number };
+  };
+  "window.close": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
+  "window.minimize": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
+  "window.maximize": {
+    id: string;
+    state?: "normal" | "minimized" | "maximized" | "closed";
+    size?: { width: number; height: number };
+  };
+  "window.move": { id: string; position?: { x: number; y: number } };
+  "window.resize": {
+    id: string;
+    size?: { width: number; height: number };
+    position?: { x: number; y: number };
+  };
   "startmenu.toggle": { open?: boolean };
   "desktop.icon.launch": { appId: string; iconId?: string };
 };
@@ -28,10 +47,7 @@ class EventBus {
     };
   }
 
-  emit<TKey extends keyof EventMap>(
-    eventName: TKey,
-    payload: EventMap[TKey],
-  ): void {
+  emit<TKey extends keyof EventMap>(eventName: TKey, payload: EventMap[TKey]): void {
     const listenersForEvent = this.listeners.get(eventName);
 
     if (!listenersForEvent) {
