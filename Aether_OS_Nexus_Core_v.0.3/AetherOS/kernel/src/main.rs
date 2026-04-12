@@ -4,11 +4,13 @@
 #![cfg_attr(target_os = "none", no_main)] // Disable Rust entry points for bare-metal builds
 
 #[cfg(target_os = "none")]
+use core::cell::UnsafeCell;
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 #[cfg(target_os = "none")]
 use core::arch::global_asm;
 #[cfg(target_os = "none")]
-use bootloader_api::BootInfo; // Import BootInfo from the bootloader_api crate
+use bootloader_api::{BootInfo, BootloaderConfig}; // Import BootInfo from the bootloader_api crate
 #[cfg(target_os = "none")]
 use aetheros_kernel::{init, task};
 
@@ -65,10 +67,29 @@ _start:
 struct KernelStack([u8; KERNEL_BOOT_STACK_SIZE]);
 
 #[cfg(target_os = "none")]
-#[no_mangle]
+#[repr(transparent)]
+struct KernelStackStorage(UnsafeCell<KernelStack>);
+
+#[cfg(target_os = "none")]
+// SAFETY: early boot is strictly single-core/single-threaded until scheduler
+// bring-up; the stack storage is never concurrently aliased.
+unsafe impl Sync for KernelStackStorage {}
+
+#[cfg(target_os = "none")]
+#[unsafe(no_mangle)]
 #[link_section = ".bss.stack"]
 #[used]
-static mut STACK: KernelStack = KernelStack([0; KERNEL_BOOT_STACK_SIZE]);
+static STACK: KernelStackStorage = KernelStackStorage(UnsafeCell::new(KernelStack([0; KERNEL_BOOT_STACK_SIZE])));
+
+#[cfg(target_os = "none")]
+#[unsafe(link_section = ".bootloader-config")]
+#[used]
+static BOOTLOADER_CONFIG: [u8; BootloaderConfig::SERIALIZED_LEN] =
+    BootloaderConfig::new_default().serialize();
+
+#[cfg(target_os = "none")]
+#[used]
+static BOOTLOADER_CONFIG_REF: &[u8; BootloaderConfig::SERIALIZED_LEN] = &BOOTLOADER_CONFIG;
 
 /// Kernel entry point in `no_std`/`no_main` mode.
 ///
@@ -79,6 +100,9 @@ static mut STACK: KernelStack = KernelStack([0; KERNEL_BOOT_STACK_SIZE]);
 #[no_mangle]
 #[cfg(target_os = "none")]
 pub unsafe extern "C" fn kernel_entry(boot_info_ptr: *mut BootInfo) -> ! {
+    // Ensure the bootloader config symbol is retained in the final ELF.
+    bootloader_api::__force_use(&BOOTLOADER_CONFIG_REF);
+
     // SAFETY: `_start` passes the handoff pointer in `rdi` using the SysV ABI.
     // We validate non-null first, then materialize exactly one mutable reference
     // to preserve bootloader's unique-mutable-access contract for BootInfo.
