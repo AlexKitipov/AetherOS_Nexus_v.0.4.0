@@ -45,16 +45,11 @@ SECTIONS
         PROVIDE(__text_end = .);
     } > RAM
 
-    /* Serialized bootloader API configuration consumed by the bootloader crate. */
-    .bootloader-config : ALIGN(8)
-    {
-        KEEP(*(.bootloader-config))
-    } > RAM
-
     /* Read-only constants and jump tables. */
     .rodata : ALIGN(4K)
     {
         PROVIDE(__rodata_start = .);
+        KEEP(*(.bootloader-config))
         *(.rodata .rodata.*)
         PROVIDE(__rodata_end = .);
     } > RAM
@@ -147,8 +142,7 @@ ASSERT(__kernel_end <= ORIGIN(RAM) + LENGTH(RAM), "Kernel image exceeds RAM regi
 /* Section ordering checks: executable -> read-only -> writable -> zeroed. */
 ASSERT(__entry_start == __kernel_start, "Entry section is not at image start");
 ASSERT(__entry_end <= __text_end, "Entry section is not within executable text");
-ASSERT(__text_end <= ADDR(.bootloader-config), ".text overlaps .bootloader-config");
-ASSERT(ADDR(.bootloader-config) + SIZEOF(.bootloader-config) <= __rodata_start, ".bootloader-config overlaps .rodata");
+ASSERT(__text_end <= __rodata_start, ".text overlaps .rodata");
 ASSERT(__rodata_end <= __data_start, ".rodata overlaps .data");
 ASSERT(__data_end <= __bss_start, ".data overlaps .bss");
 ASSERT(__bss_end <= __page_tables_start, ".bss overlaps .page_tables");

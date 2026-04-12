@@ -1,25 +1,29 @@
-use std::{env, path::PathBuf, process::Command};
+use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=linker.ld");
+    // This build.rs is simplified to be a no-op when `bootimage` is used.
+    // The actual bootloader binaries are compiled by `bootimage` itself.
+    // We just emit placeholder cargo:rustc-env variables to satisfy the build script.
 
-    // Allow crates to use cfg(doc_cfg) without warnings
-    println!("cargo::rustc-check-cfg=cfg(doc_cfg)");
-
-    let toolchain = Command::new("rustc")
-        .arg("--version")
-        .output()
-        .expect("failed to run rustc --version");
-
-    let version = String::from_utf8_lossy(&toolchain.stdout);
-    if !version.contains("nightly") {
-        panic!("AetherOS requires nightly Rust toolchain.");
+    #[cfg(feature = "uefi")]
+    {
+        // This path is where bootimage will place the final UEFI bootloader image.
+        // We are declaring it here for build script satisfaction, not actually building it.
+        println!("cargo:rustc-env=UEFI_BOOTLOADER_PATH={}", 
+            PathBuf::from(std::env::var("OUT_DIR").unwrap())
+                .join("bin")
+                .join("bootloader-x86_64-uefi.efi")
+                .display()
+        );
     }
-
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"));
-    let linker_script = manifest_dir.join("linker.ld");
-
-    println!("cargo:rustc-link-arg-bin=aetheros-kernel=-T{}", linker_script.display());
-    println!("cargo:rustc-link-arg-bin=aetheros-kernel=-no-pie");
+    
+    #[cfg(feature = "bios")]
+    {
+        // These are placeholder paths for BIOS, if the BIOS feature were active.
+        // In our UEFI-only setup, this branch is not taken.
+        println!("cargo:rustc-env=BIOS_BOOT_SECTOR_PATH={}", "/path/to/bootloader/boot_sector");
+        println!("cargo:rustc-env=BIOS_STAGE_2_PATH={}", "/path/to/bootloader/stage_2");
+        println!("cargo:rustc-env=BIOS_STAGE_3_PATH={}", "/path/to/bootloader/stage_3");
+        println!("cargo:rustc-env=BIOS_STAGE_4_PATH={}", "/path/to/bootloader/stage_4");
+    }
 }

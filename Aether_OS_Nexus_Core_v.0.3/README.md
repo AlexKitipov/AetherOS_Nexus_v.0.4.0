@@ -93,6 +93,26 @@ rustup component add rust-src
 rustup component add llvm-tools-preview
 ```
 
+
+### Dependency setup
+
+For a centralized dependency list and setup instructions, see [`docs/dependencies.md`](docs/dependencies.md).
+
+For a machine-by-machine validation checklist, see [`docs/environment_audit_checklist.md`](docs/environment_audit_checklist.md).
+
+Quick start:
+
+```bash
+pip install -r requirements.txt
+./scripts/check_env.sh
+```
+
+Ubuntu helper (optional):
+
+```bash
+./scripts/install_deps_ubuntu.sh
+```
+
 ### Build kernel
 
 From repository root, run:

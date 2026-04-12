@@ -26,6 +26,22 @@ pub fn create_task(id: u64, name: &str, capabilities: Vec<Capability>) {
     scheduler::add_task(tcb);
 }
 
+/// Creates a new task with a custom scheduler quantum in timer ticks.
+pub fn create_task_with_timeslice(
+    id: u64,
+    name: &str,
+    capabilities: Vec<Capability>,
+    timeslice_ticks: u64,
+) {
+    let tcb = TaskControlBlock::new_with_timeslice(
+        id,
+        String::from(name),
+        capabilities,
+        timeslice_ticks,
+    );
+    scheduler::add_task(tcb);
+}
+
 /// Creates a new task inheriting all capabilities from an existing task.
 pub fn create_task_inheriting(parent_task_id: u64, id: u64, name: &str) -> bool {
     let parent = match scheduler::get_task(parent_task_id) {
@@ -101,7 +117,9 @@ pub fn get_current_task() -> TaskControlBlock {
 }
 
 /// Blocks the current task on an IPC channel.
-pub fn block_current_on_channel(_channel_id: u32) {
+pub fn block_current_on_channel(channel_id: u32) {
+    let current_task_id = scheduler::get_current_task_id();
+    let _ = crate::ipc::mailbox::register_receiver_waiter(channel_id, current_task_id);
     scheduler::block_current_task();
 }
 
@@ -142,4 +160,9 @@ pub fn schedule() {
 /// Saves CPU register snapshot for the currently running task.
 pub fn save_current_context(snapshot: Context) {
     scheduler::save_current_context(snapshot);
+}
+
+/// Timer integration hook for preemptive scheduling.
+pub fn on_timer_tick() {
+    scheduler::on_timer_tick();
 }

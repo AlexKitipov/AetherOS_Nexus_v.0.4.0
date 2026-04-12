@@ -119,18 +119,6 @@ qemu-system-x86_64 -kernel target/aetheros-x86_64/release/aetheros-kernel
 ./scripts/run_qemu.sh
 ```
 
-### Host environment audit
-
-Use the host audit helper to validate kernel/UEFI toolchain prerequisites, Rust targets, Python modules, script shebang/executable bits, KVM availability, disk capacity, Node ABI hints, and bootloader build status:
-
-```bash
-./scripts/audit_host_environment.sh
-```
-
-Detailed gap notes and rationale are documented in:
-
-- `docs/system/host-environment-audit-gaps.md`
-
 ### Makefile shortcuts
 
 From `AetherOS/`:
