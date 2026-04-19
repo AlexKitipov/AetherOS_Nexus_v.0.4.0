@@ -8,6 +8,7 @@ import {
   type DragBounds,
 } from "@/desktop/drag";
 import { VirtualFS, type VFSNode, type VFSPosition } from "@/filesystem/VirtualFS";
+import { launchFileExplorer } from "@/apps/fileExplorer/FileExplorer";
 
 export interface DesktopIcon {
   id: string;
@@ -191,13 +192,10 @@ export class DesktopManager {
       return;
     }
 
-    windowManager.createWindow({
-      id: `explorer:${path}`,
-      title: `File Explorer — ${path}`,
-      content: `<div data-path="${path}">Folder view placeholder</div>`,
-      width: 540,
-      height: 420,
-      position: { x: 140, y: 110 },
+    launchFileExplorer(path, {
+      windowManager,
+      virtualFS: this.options.virtualFS,
+      onOpenFile: (filePath) => this.openFileWithDefaultApp(filePath),
     });
   }
 
