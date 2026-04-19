@@ -4,12 +4,25 @@ import { TaskbarManager } from "@/taskbar/TaskbarManager";
 import { StartMenuManager } from "@/startmenu/StartMenuManager";
 import { getApp, listApps } from "@/apps/AppRegistry";
 import { WindowManager } from "@/windowManager/WindowManager";
+import { DesktopManager } from "@/desktop/DesktopManager";
+import { VirtualFS } from "@/filesystem/VirtualFS";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
   const taskbarManager = new TaskbarManager(uiRoot.taskbar);
   const startMenuManager = new StartMenuManager(uiRoot.startMenu);
   const windowManager = WindowManager.getInstance(uiRoot.windowLayer);
+
+  const virtualFS = new VirtualFS();
+  seedDesktopFS(virtualFS);
+
+  const desktopManager = new DesktopManager({
+    desktopRoot: uiRoot.desktop,
+    virtualFS,
+    windowManager,
+  });
+
+  desktopManager.loadDesktopFromFS();
 
   startMenuManager.setApps(listApps());
 
@@ -47,4 +60,24 @@ export function initializeShellArchitecture(): void {
   });
 
   void taskbarManager;
+}
+
+function seedDesktopFS(virtualFS: VirtualFS): void {
+  virtualFS.createFolder("/", "desktop");
+  virtualFS.createFolder("/desktop", "Documents");
+  virtualFS.createFile("/desktop", "welcome.txt", "Welcome to AetherOS Nexus desktop.");
+
+  virtualFS.updateNode("/desktop/Documents", (node) => {
+    node.metadata = {
+      icon: "/icons/folder.svg",
+      iconPosition: { x: 0, y: 0 },
+    };
+  });
+
+  virtualFS.updateNode("/desktop/welcome.txt", (node) => {
+    node.metadata = {
+      icon: "/icons/file.svg",
+      iconPosition: { x: 0, y: 80 },
+    };
+  });
 }
