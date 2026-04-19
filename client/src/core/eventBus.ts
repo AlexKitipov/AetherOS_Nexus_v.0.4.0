@@ -1,19 +1,21 @@
 type EventHandler<TPayload = unknown> = (payload: TPayload) => void;
 
+type WindowState = "normal" | "minimized" | "maximized" | "closed";
+
 type EventMap = {
   "window.open": { id: string; source?: string };
-  "window.focus": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
+  "window.focus": { id: string; state?: WindowState };
   "window.create": {
     id: string;
-    state?: "normal" | "minimized" | "maximized" | "closed";
+    state?: WindowState;
     position?: { x: number; y: number };
     size?: { width: number; height: number };
   };
-  "window.close": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
-  "window.minimize": { id: string; state?: "normal" | "minimized" | "maximized" | "closed" };
+  "window.close": { id: string; state?: WindowState };
+  "window.minimize": { id: string; state?: WindowState };
   "window.maximize": {
     id: string;
-    state?: "normal" | "minimized" | "maximized" | "closed";
+    state?: WindowState;
     size?: { width: number; height: number };
   };
   "window.move": { id: string; position?: { x: number; y: number } };
@@ -23,7 +25,11 @@ type EventMap = {
     position?: { x: number; y: number };
   };
   "startmenu.toggle": { open?: boolean };
+  "startmenu.open": Record<string, never>;
+  "startmenu.close": Record<string, never>;
   "desktop.icon.launch": { appId: string; iconId?: string };
+  "app.launch": { appId: string };
+  "taskbar.button.click": { id: string };
 };
 
 class EventBus {

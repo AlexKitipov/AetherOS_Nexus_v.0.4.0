@@ -163,6 +163,10 @@ export class WindowManager {
     return this.windows.get(id);
   }
 
+  getActiveWindowId(): string | null {
+    return this.activeWindowId;
+  }
+
   private bindControlButtons(windowRef: OSWindow): void {
     const minimizeButton = windowRef.element.querySelector<HTMLButtonElement>(".btn-minimize");
     const maximizeButton = windowRef.element.querySelector<HTMLButtonElement>(".btn-maximize");
