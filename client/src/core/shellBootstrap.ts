@@ -2,10 +2,11 @@ import { eventBus } from "@/core/eventBus";
 import { getUIRoot } from "@/core/uiRoot";
 import { TaskbarManager } from "@/taskbar/TaskbarManager";
 import { StartMenuManager } from "@/startmenu/StartMenuManager";
-import { getApp, listApps } from "@/apps/AppRegistry";
+import { getApp, listApps, registerApp } from "@/apps/AppRegistry";
 import { WindowManager } from "@/windowManager/WindowManager";
 import { DesktopManager } from "@/desktop/DesktopManager";
 import { VirtualFS } from "@/filesystem/VirtualFS";
+import { launchFileExplorer } from "@/apps/fileExplorer/FileExplorer";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
@@ -16,6 +17,18 @@ export function initializeShellArchitecture(): void {
   const virtualFS = new VirtualFS();
   seedDesktopFS(virtualFS);
 
+
+  registerApp({
+    id: "file-explorer",
+    name: "File Explorer",
+    icon: "📁",
+    launch: () => {
+      launchFileExplorer("/desktop", {
+        virtualFS,
+        windowManager,
+      });
+    },
+  });
   const desktopManager = new DesktopManager({
     desktopRoot: uiRoot.desktop,
     virtualFS,
