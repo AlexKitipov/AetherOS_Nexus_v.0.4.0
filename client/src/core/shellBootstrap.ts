@@ -7,6 +7,7 @@ import { WindowManager } from "@/windowManager/WindowManager";
 import { DesktopManager } from "@/desktop/DesktopManager";
 import { VirtualFS } from "@/filesystem/VirtualFS";
 import { launchFileExplorer } from "@/apps/fileExplorer/FileExplorer";
+import { ContextMenuManager } from "@/contextmenu/ContextMenuManager";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
@@ -33,6 +34,11 @@ export function initializeShellArchitecture(): void {
     desktopRoot: uiRoot.desktop,
     virtualFS,
     windowManager,
+  });
+  const contextMenuManager = new ContextMenuManager({
+    root: uiRoot.contextMenu,
+    windowManager,
+    onRefreshDesktop: () => desktopManager.loadDesktopFromFS(),
   });
 
   desktopManager.loadDesktopFromFS();
@@ -73,6 +79,7 @@ export function initializeShellArchitecture(): void {
   });
 
   void taskbarManager;
+  void contextMenuManager;
 }
 
 function seedDesktopFS(virtualFS: VirtualFS): void {

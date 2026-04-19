@@ -7,6 +7,14 @@ export interface KernelAppInfo {
   entryPoint: string;
 }
 
+export interface KernelFileInfo {
+  path: string;
+  name: string;
+  type: "file" | "folder";
+  size: number;
+  updatedAt: string;
+}
+
 const EMPTY_FS_ROOT: VFSNode = {
   id: "root",
   name: "/",
@@ -32,4 +40,24 @@ export async function loadFSFromKernel(): Promise<VFSNode> {
 
 export async function saveFSChangesToKernel(): Promise<void> {
   // Placeholder: will persist VFS mutations through kernel bridge.
+}
+
+export async function requestKernelFileDelete(path: string): Promise<void> {
+  void path;
+  return Promise.resolve();
+}
+
+export async function requestKernelFileProperties(path: string): Promise<KernelFileInfo> {
+  return Promise.resolve({
+    path,
+    name: path.split("/").filter(Boolean).at(-1) ?? "",
+    type: "file",
+    size: 0,
+    updatedAt: new Date(0).toISOString(),
+  });
+}
+
+export async function requestKernelAppLaunch(appId: string): Promise<void> {
+  void appId;
+  return Promise.resolve();
 }

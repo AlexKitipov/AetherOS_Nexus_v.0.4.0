@@ -175,6 +175,9 @@
 #context-menu {
   top: 0;
   z-index: 40;
+  display: none;
+  width: auto;
+  pointer-events: none;
 }
 
 #system-overlay {
@@ -257,6 +260,50 @@
 .explorer-content {
   overflow: auto;
   padding: 8px;
+}
+
+.global-context-menu {
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(77, 163, 255, 0.35);
+  background: rgba(10, 14, 24, 0.97);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.context-menu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #d9e6ff;
+  text-align: left;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.context-menu-item:hover,
+.context-menu-item[data-selected="true"] {
+  background: rgba(77, 163, 255, 0.2);
+}
+
+.context-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(77, 163, 255, 0.2);
 }
 
 .explorer-sidebar {

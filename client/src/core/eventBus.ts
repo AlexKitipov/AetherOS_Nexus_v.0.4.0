@@ -2,6 +2,49 @@ type EventHandler<TPayload = unknown> = (payload: TPayload) => void;
 
 type WindowState = "normal" | "minimized" | "maximized" | "closed";
 
+type ContextMenuPosition = { x: number; y: number };
+
+type DesktopContextTarget = {
+  type: "desktop";
+};
+
+type FileContextTarget = {
+  type: "file" | "app";
+  path: string;
+  name: string;
+  source: "desktop" | "explorer";
+  appId?: string;
+  extension?: string;
+  permissions?: {
+    canRename?: boolean;
+    canDelete?: boolean;
+  };
+};
+
+type FolderContextTarget = {
+  type: "folder";
+  path: string;
+  name: string;
+  source: "desktop" | "explorer";
+  permissions?: {
+    canCreate?: boolean;
+    canRename?: boolean;
+    canDelete?: boolean;
+  };
+};
+
+type WindowContextTarget = {
+  id: string;
+  title: string;
+  state: WindowState;
+};
+
+type TaskbarContextTarget = {
+  id: string;
+  title?: string;
+  isStartButton?: boolean;
+};
+
 type EventMap = {
   "window.open": { id: string; source?: string };
   "window.focus": { id: string; state?: WindowState };
@@ -30,6 +73,26 @@ type EventMap = {
   "desktop.icon.launch": { appId: string; iconId?: string };
   "app.launch": { appId: string };
   "taskbar.button.click": { id: string };
+  "contextmenu.desktop": {
+    position: ContextMenuPosition;
+    target: DesktopContextTarget;
+  };
+  "contextmenu.file": {
+    position: ContextMenuPosition;
+    target: FileContextTarget;
+  };
+  "contextmenu.folder": {
+    position: ContextMenuPosition;
+    target: FolderContextTarget;
+  };
+  "contextmenu.window": {
+    position: ContextMenuPosition;
+    target: WindowContextTarget;
+  };
+  "contextmenu.taskbar": {
+    position: ContextMenuPosition;
+    target: TaskbarContextTarget;
+  };
 };
 
 class EventBus {
@@ -72,4 +135,12 @@ class EventBus {
 
 export const eventBus = new EventBus();
 
-export type { EventMap, EventHandler };
+export type {
+  EventMap,
+  EventHandler,
+  WindowState,
+  FileContextTarget,
+  FolderContextTarget,
+  WindowContextTarget,
+  TaskbarContextTarget,
+};

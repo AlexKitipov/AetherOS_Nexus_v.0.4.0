@@ -185,8 +185,22 @@ export class WindowManager {
       event.stopPropagation();
       this.closeWindow(windowRef.id);
     };
+    const onTitlebarContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      const title = windowRef.element.querySelector<HTMLElement>(".window-title")?.textContent ?? windowRef.id;
+      eventBus.emit("contextmenu.window", {
+        position: { x: event.clientX, y: event.clientY },
+        target: {
+          id: windowRef.id,
+          title,
+          state: windowRef.state,
+        },
+      });
+    };
+    const titlebar = windowRef.element.querySelector<HTMLElement>(".window-titlebar");
 
     windowRef.element.addEventListener("mousedown", onFocus);
+    titlebar?.addEventListener("contextmenu", onTitlebarContextMenu);
     minimizeButton?.addEventListener("click", onMinimize);
     maximizeButton?.addEventListener("click", onMaximize);
     closeButton?.addEventListener("click", onClose);
@@ -195,6 +209,7 @@ export class WindowManager {
     this.lifecycleTeardown.set(windowRef.id, [
       ...existing,
       () => windowRef.element.removeEventListener("mousedown", onFocus),
+      () => titlebar?.removeEventListener("contextmenu", onTitlebarContextMenu),
       () => minimizeButton?.removeEventListener("click", onMinimize),
       () => maximizeButton?.removeEventListener("click", onMaximize),
       () => closeButton?.removeEventListener("click", onClose),
