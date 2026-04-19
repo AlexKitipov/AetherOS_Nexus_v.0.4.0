@@ -39,6 +39,13 @@ export class TaskbarManager {
     button.textContent = icon ? `${icon} ${title}` : title;
 
     button.addEventListener("click", () => this.onWindowButtonClick(id));
+    button.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      eventBus.emit("contextmenu.taskbar", {
+        position: { x: event.clientX, y: event.clientY },
+        target: { id, title, isStartButton: false },
+      });
+    });
 
     this.taskbarAppList.append(button);
     this.buttons.set(id, { id, element: button, active: false });
@@ -97,6 +104,13 @@ export class TaskbarManager {
       this.clearActive();
       eventBus.emit("taskbar.button.click", { id: "start" });
       eventBus.emit("startmenu.toggle", {});
+    });
+    startButton.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      eventBus.emit("contextmenu.taskbar", {
+        position: { x: event.clientX, y: event.clientY },
+        target: { id: "start", title: "Start", isStartButton: true },
+      });
     });
 
     this.taskbarAppList.prepend(startButton);

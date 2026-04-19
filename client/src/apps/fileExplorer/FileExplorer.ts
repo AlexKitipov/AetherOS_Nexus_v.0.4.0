@@ -1,5 +1,6 @@
 import { WindowManager } from "@/windowManager/WindowManager";
 import { VirtualFS, type VFSNode } from "@/filesystem/VirtualFS";
+import { eventBus } from "@/core/eventBus";
 
 interface FileExplorerOptions {
   virtualFS?: VirtualFS;
@@ -37,7 +38,49 @@ export class FileExplorer {
 
     this.virtualFS = options.virtualFS ?? new VirtualFS();
     this.onOpenFile = options.onOpenFile;
-    this.onContextMenu = options.onContextMenu;
+    this.onContextMenu =
+      options.onContextMenu ??
+      ((target, path, event) => {
+        const position = { x: event.clientX, y: event.clientY };
+        const name = path.split("/").filter(Boolean).at(-1) ?? path;
+
+        if (target === "folder") {
+          eventBus.emit("contextmenu.folder", {
+            position,
+            target: {
+              type: "folder",
+              path,
+              name,
+              source: "explorer",
+            },
+          });
+          return;
+        }
+
+        if (target === "file") {
+          eventBus.emit("contextmenu.file", {
+            position,
+            target: {
+              type: "file",
+              path,
+              name,
+              source: "explorer",
+              extension: getFileExtension(name),
+            },
+          });
+          return;
+        }
+
+        eventBus.emit("contextmenu.folder", {
+          position,
+          target: {
+            type: "folder",
+            path,
+            name,
+            source: "explorer",
+          },
+        });
+      });
 
     this.rootElement = document.createElement("div");
     this.rootElement.className = "file-explorer";
@@ -372,4 +415,14 @@ function expandParentFolders(path: string, expandedFolders: Set<string>): void {
 
 function toEmojiIcon(icon: string): string {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='18'>${icon}</text></svg>`)}`;
+}
+
+function getFileExtension(fileName: string): string {
+  const lastDot = fileName.lastIndexOf(".");
+
+  if (lastDot <= 0 || lastDot === fileName.length - 1) {
+    return "";
+  }
+
+  return fileName.slice(lastDot).toLowerCase();
 }

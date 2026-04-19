@@ -1,4 +1,5 @@
 import { getApp } from "@/apps/AppRegistry";
+import { eventBus } from "@/core/eventBus";
 import type { WindowManager } from "@/windowManager/WindowManager";
 import {
   attachDesktopIconDrag,
@@ -261,7 +262,30 @@ export class DesktopManager {
     record.element.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      this.openContextMenuForIcon(iconId, event.clientX, event.clientY);
+      const position = { x: event.clientX, y: event.clientY };
+
+      if (record.icon.type === "folder") {
+        eventBus.emit("contextmenu.folder", {
+          position,
+          target: {
+            type: "folder",
+            path: record.fsPath ?? `${this.desktopPath}/${record.icon.name}`,
+            name: record.icon.name,
+            source: "desktop",
+          },
+        });
+        return;
+      }
+
+      eventBus.emit("contextmenu.file", {
+        position,
+        target: {
+          type: record.icon.type === "app" ? "app" : "file",
+          path: record.fsPath ?? `${this.desktopPath}/${record.icon.name}`,
+          name: record.icon.name,
+          source: "desktop",
+        },
+      });
     });
 
     const cleanup = attachDesktopIconDrag(record.element, iconId, {
@@ -274,6 +298,18 @@ export class DesktopManager {
   }
 
   private attachSelectionBox(): void {
+    this.options.desktopRoot.oncontextmenu = (event) => {
+      if (event.target !== this.options.desktopRoot) {
+        return;
+      }
+
+      event.preventDefault();
+      eventBus.emit("contextmenu.desktop", {
+        position: { x: event.clientX, y: event.clientY },
+        target: { type: "desktop" },
+      });
+    };
+
     this.options.desktopRoot.onpointerdown = (event) => {
       if (event.target !== this.options.desktopRoot) {
         return;
@@ -282,31 +318,6 @@ export class DesktopManager {
       this.selectedIconIds.clear();
       this.updateSelectionStates();
     };
-  }
-
-  private openContextMenuForIcon(id: string, x: number, y: number): void {
-    const record = this.iconRecords.get(id);
-
-    if (!record) {
-      return;
-    }
-
-    const contextMenu = document.getElementById("context-menu");
-
-    if (!contextMenu) {
-      return;
-    }
-
-    const options =
-      record.icon.type === "app"
-        ? ["Open", "Pin to taskbar", "Properties"]
-        : record.icon.type === "folder"
-          ? ["Open", "Rename", "Delete"]
-          : ["Open", "Open With", "Delete"];
-
-    contextMenu.style.left = `${x}px`;
-    contextMenu.style.top = `${y}px`;
-    contextMenu.innerHTML = options.map((option) => `<button type="button">${option}</button>`).join("");
   }
 
   private updateSelectionStates(): void {
