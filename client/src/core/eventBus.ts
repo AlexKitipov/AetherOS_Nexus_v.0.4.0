@@ -1,5 +1,26 @@
 type EventHandler<TPayload = unknown> = (payload: TPayload) => void;
 
+export type NotificationPayload = {
+  title: string;
+  message: string;
+  icon?: string;
+  duration?: number;
+};
+
+export type KernelFsErrorPayload = {
+  path: string;
+  reason: string;
+};
+
+export type KernelProcessCrashPayload = {
+  pid: number;
+};
+
+export type SystemAlertPayload = {
+  title: string;
+  message: string;
+};
+
 type WindowState = "normal" | "minimized" | "maximized" | "closed";
 
 type ContextMenuPosition = { x: number; y: number };
@@ -93,6 +114,17 @@ type EventMap = {
     position: ContextMenuPosition;
     target: TaskbarContextTarget;
   };
+  "notify.info": NotificationPayload;
+  "notify.warning": NotificationPayload;
+  "notify.error": NotificationPayload;
+  "notify.success": NotificationPayload;
+  "modal.open": import("@/modals/ModalManager").ModalDialog;
+  "modal.close": Record<string, never>;
+  "fs.error": KernelFsErrorPayload;
+  "process.crash": KernelProcessCrashPayload;
+  "network.down": Record<string, never>;
+  "battery.low": Record<string, never>;
+  "system.alert": SystemAlertPayload;
 };
 
 class EventBus {
