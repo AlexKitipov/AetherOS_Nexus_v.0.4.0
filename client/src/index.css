@@ -341,3 +341,131 @@
   width: 20px;
   height: 20px;
 }
+
+#system-overlay {
+  display: block;
+}
+
+#notification-center {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.system-notification {
+  position: relative;
+  pointer-events: auto;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 14, 24, 0.95);
+  color: #d9e6ff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.system-notification.type-info { border-color: rgba(77, 163, 255, 0.55); }
+.system-notification.type-success { border-color: rgba(78, 201, 120, 0.55); }
+.system-notification.type-warning { border-color: rgba(247, 196, 92, 0.55); }
+.system-notification.type-error { border-color: rgba(237, 93, 93, 0.65); }
+
+.notification-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.notification-message {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(217, 230, 255, 0.85);
+}
+
+.notification-timestamp {
+  margin-top: 8px;
+  display: block;
+  font-size: 11px;
+  color: rgba(217, 230, 255, 0.65);
+}
+
+.notification-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#modal-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#modal-container[data-open="true"] {
+  pointer-events: auto;
+}
+
+.system-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.56);
+  z-index: 59;
+}
+
+.system-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 32px));
+  background: rgba(10, 14, 24, 0.98);
+  border: 1px solid rgba(77, 163, 255, 0.45);
+  border-radius: 8px;
+  padding: 16px;
+  color: #d9e6ff;
+  z-index: 60;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
+}
+
+.system-modal-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.system-modal-message {
+  margin: 10px 0 18px;
+  line-height: 1.45;
+}
+
+.system-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.system-modal-button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(21, 31, 46, 0.85);
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.system-modal-button.primary {
+  border-color: rgba(77, 163, 255, 0.65);
+}
+
+.system-modal-button.danger {
+  border-color: rgba(237, 93, 93, 0.7);
+  color: #ffc9c9;
+}

@@ -8,6 +8,8 @@ import { DesktopManager } from "@/desktop/DesktopManager";
 import { VirtualFS } from "@/filesystem/VirtualFS";
 import { launchFileExplorer } from "@/apps/fileExplorer/FileExplorer";
 import { ContextMenuManager } from "@/contextmenu/ContextMenuManager";
+import { NotificationManager } from "@/notifications/NotificationManager";
+import { ModalManager } from "@/modals/ModalManager";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
@@ -40,6 +42,11 @@ export function initializeShellArchitecture(): void {
     windowManager,
     onRefreshDesktop: () => desktopManager.loadDesktopFromFS(),
   });
+
+  const notificationCenter = ensureOverlayChild(uiRoot.systemOverlay, "notification-center");
+  const modalContainer = ensureOverlayChild(uiRoot.systemOverlay, "modal-container");
+  const notificationManager = new NotificationManager(notificationCenter);
+  const modalManager = new ModalManager(modalContainer);
 
   desktopManager.loadDesktopFromFS();
 
@@ -80,7 +87,24 @@ export function initializeShellArchitecture(): void {
 
   void taskbarManager;
   void contextMenuManager;
+  void notificationManager;
+  void modalManager;
 }
+
+function ensureOverlayChild(root: HTMLElement, id: string): HTMLElement {
+  const existing = root.querySelector<HTMLElement>(`#${id}`);
+
+  if (existing) {
+    return existing;
+  }
+
+  const element = document.createElement("div");
+  element.id = id;
+  root.append(element);
+
+  return element;
+}
+
 
 function seedDesktopFS(virtualFS: VirtualFS): void {
   virtualFS.createFolder("/", "desktop");
