@@ -93,6 +93,8 @@ type EventMap = {
   "startmenu.close": Record<string, never>;
   "desktop.icon.launch": { appId: string; iconId?: string };
   "app.launch": { appId: string };
+  "app.started": { appId: string; pid: number; windowId: string };
+  "app.terminated": { appId: string; pid: number; windowId: string };
   "taskbar.button.click": { id: string };
   "contextmenu.desktop": {
     position: ContextMenuPosition;

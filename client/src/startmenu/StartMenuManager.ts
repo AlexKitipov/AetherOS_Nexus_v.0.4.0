@@ -1,11 +1,11 @@
 import { eventBus } from "@/core/eventBus";
-import type { AppDefinition } from "@/apps/AppRegistry";
+import type { OSApp } from "@/process/types";
 
 export class StartMenuManager {
   private readonly appGrid: HTMLElement;
   private readonly searchContainer: HTMLElement;
   private readonly searchInput: HTMLInputElement;
-  private apps: AppDefinition[] = [];
+  private apps: OSApp[] = [];
   private visible = false;
 
   constructor(private readonly root: HTMLElement) {
@@ -45,7 +45,7 @@ export class StartMenuManager {
     this.open();
   }
 
-  renderApps(apps: AppDefinition[]): void {
+  renderApps(apps: OSApp[]): void {
     this.appGrid.innerHTML = "";
 
     apps.forEach((app) => {
@@ -63,7 +63,7 @@ export class StartMenuManager {
     });
   }
 
-  setApps(apps: AppDefinition[]): void {
+  setApps(apps: OSApp[]): void {
     this.apps = apps;
     this.renderApps(apps);
   }
