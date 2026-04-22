@@ -2,36 +2,28 @@ import { eventBus } from "@/core/eventBus";
 import { getUIRoot } from "@/core/uiRoot";
 import { TaskbarManager } from "@/taskbar/TaskbarManager";
 import { StartMenuManager } from "@/startmenu/StartMenuManager";
-import { getApp, listApps, registerApp } from "@/apps/AppRegistry";
+import { listApps, registerApp } from "@/apps/AppRegistry";
 import { WindowManager } from "@/windowManager/WindowManager";
 import { DesktopManager } from "@/desktop/DesktopManager";
 import { VirtualFS } from "@/filesystem/VirtualFS";
-import { launchFileExplorer } from "@/apps/fileExplorer/FileExplorer";
 import { ContextMenuManager } from "@/contextmenu/ContextMenuManager";
 import { NotificationManager } from "@/notifications/NotificationManager";
 import { ModalManager } from "@/modals/ModalManager";
+import { AppRuntime } from "@/process/AppRuntime";
+import { SystemApps } from "@/apps/system/SystemApps";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
   const taskbarManager = new TaskbarManager(uiRoot.taskbar);
   const startMenuManager = new StartMenuManager(uiRoot.startMenu);
   const windowManager = WindowManager.getInstance(uiRoot.windowLayer);
+  const appRuntime = new AppRuntime(windowManager);
 
   const virtualFS = new VirtualFS();
   seedDesktopFS(virtualFS);
 
+  registerSystemApps();
 
-  registerApp({
-    id: "file-explorer",
-    name: "File Explorer",
-    icon: "📁",
-    launch: () => {
-      launchFileExplorer("/desktop", {
-        virtualFS,
-        windowManager,
-      });
-    },
-  });
   const desktopManager = new DesktopManager({
     desktopRoot: uiRoot.desktop,
     virtualFS,
@@ -57,8 +49,7 @@ export function initializeShellArchitecture(): void {
   });
 
   eventBus.subscribe("app.launch", ({ appId }) => {
-    const app = getApp(appId);
-    app?.launch();
+    appRuntime.launchApp(appId);
   });
 
   eventBus.subscribe("taskbar.button.click", ({ id }) => {
@@ -91,6 +82,14 @@ export function initializeShellArchitecture(): void {
   void modalManager;
 }
 
+function registerSystemApps(): void {
+  registerApp(SystemApps.FileExplorer);
+  registerApp(SystemApps.TerminalEmulator);
+  registerApp(SystemApps.Settings);
+  registerApp(SystemApps.TextEditor);
+  registerApp(SystemApps.ProcessManager);
+}
+
 function ensureOverlayChild(root: HTMLElement, id: string): HTMLElement {
   const existing = root.querySelector<HTMLElement>(`#${id}`);
 
@@ -104,7 +103,6 @@ function ensureOverlayChild(root: HTMLElement, id: string): HTMLElement {
 
   return element;
 }
-
 
 function seedDesktopFS(virtualFS: VirtualFS): void {
   virtualFS.createFolder("/", "desktop");

@@ -174,7 +174,7 @@ export class DesktopManager {
       name: node.name,
       icon: String(node.metadata?.icon ?? ""),
       type: appDefinition ? "app" : "file",
-      launch: appDefinition?.launch,
+      launch: appDefinition ? () => eventBus.emit("app.launch", { appId: appDefinition.id }) : undefined,
       open: () => this.openFileWithDefaultApp(`${parentPath}/${node.name}`),
     };
   }

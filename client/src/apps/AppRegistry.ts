@@ -1,27 +1,48 @@
-export interface AppDefinition {
-  id: string;
-  name: string;
-  icon: string;
-  launch: () => void;
-}
+import type { OSApp } from "@/process/types";
 
-const apps: AppDefinition[] = [];
+export class AppRegistry {
+  private static instance: AppRegistry | null = null;
+  private readonly apps = new Map<string, OSApp>();
 
-export function registerApp(app: AppDefinition): void {
-  const existingIndex = apps.findIndex((entry) => entry.id === app.id);
+  static getInstance(): AppRegistry {
+    if (!AppRegistry.instance) {
+      AppRegistry.instance = new AppRegistry();
+    }
 
-  if (existingIndex >= 0) {
-    apps.splice(existingIndex, 1, app);
-    return;
+    return AppRegistry.instance;
   }
 
-  apps.push(app);
+  register(app: OSApp): void {
+    this.apps.set(app.id, app);
+  }
+
+  unregister(id: string): void {
+    this.apps.delete(id);
+  }
+
+  get(id: string): OSApp | undefined {
+    return this.apps.get(id);
+  }
+
+  list(): OSApp[] {
+    return Array.from(this.apps.values());
+  }
 }
 
-export function getApp(id: string): AppDefinition | undefined {
-  return apps.find((app) => app.id === id);
+const appRegistry = AppRegistry.getInstance();
+
+export function registerApp(app: OSApp): void {
+  appRegistry.register(app);
 }
 
-export function listApps(): AppDefinition[] {
-  return [...apps];
+export function unregisterApp(id: string): void {
+  appRegistry.unregister(id);
+}
+
+export function getApp(id: string): OSApp | undefined {
+  return appRegistry.get(id);
+}
+
+export function listApps(): OSApp[] {
+  return appRegistry.list();
 }
