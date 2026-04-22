@@ -1,5 +1,6 @@
 import type { OSApp, AppSandbox } from "@/process/types";
 import { createTerminalApp } from "@/apps/terminal/createTerminalApp";
+import { createSettingsApp } from "@/apps/settings/SettingsApp";
 
 function buildSystemAppContent(title: string, description: string): (sandbox: AppSandbox) => HTMLElement {
   return (sandbox) => {
@@ -30,7 +31,7 @@ export const SystemApps: Record<string, OSApp> = {
     id: "settings",
     name: "Settings",
     icon: "⚙️",
-    entry: buildSystemAppContent("Settings", "Manage system preferences and UI defaults."),
+    entry: (sandbox) => createSettingsApp(sandbox.getProcessInfo().windowId),
   },
   TextEditor: {
     id: "text-editor",

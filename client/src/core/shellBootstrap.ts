@@ -12,6 +12,8 @@ import { ModalManager } from "@/modals/ModalManager";
 import { AppRuntime } from "@/process/AppRuntime";
 import { SystemApps } from "@/apps/system/SystemApps";
 import { setShellServices } from "@/core/shellServices";
+import { configManager } from "@/system/ConfigManager";
+import { wallpaperManager } from "@/system/WallpaperManager";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
@@ -45,6 +47,17 @@ export function initializeShellArchitecture(): void {
   const modalContainer = ensureOverlayChild(uiRoot.systemOverlay, "modal-container");
   const notificationManager = new NotificationManager(notificationCenter);
   const modalManager = new ModalManager(modalContainer);
+
+  configManager.load();
+  configManager.onChange((config) => {
+    applyThemeVariables(config.theme, config.accentColor);
+    windowManager.updateTheme(config.theme);
+    wallpaperManager.setWallpaper(config.wallpaper);
+    document.documentElement.style.setProperty("--icon-size", `${config.animations ? 64 : 56}px`);
+    document.documentElement.dataset.animations = String(config.animations);
+    document.documentElement.dataset.fileExplorerLayout = config.defaultApps.folder ? "managed" : "default";
+    document.documentElement.dataset.terminalTheme = config.theme;
+  });
 
   desktopManager.loadDesktopFromFS();
 
@@ -128,4 +141,34 @@ function seedDesktopFS(virtualFS: VirtualFS): void {
       iconPosition: { x: 0, y: 80 },
     };
   });
+}
+
+function applyThemeVariables(theme: string, accentColor: string): void {
+  const root = document.documentElement;
+
+  const palettes: Record<string, Record<string, string>> = {
+    default: {
+      "--background-color": "#1e1e1e",
+      "--text-color": "#ffffff",
+      "--window-bg": "#2a2a2a",
+    },
+    midnight: {
+      "--background-color": "#0e1220",
+      "--text-color": "#dce8ff",
+      "--window-bg": "#151a2e",
+    },
+    light: {
+      "--background-color": "#f3f5fb",
+      "--text-color": "#1e2430",
+      "--window-bg": "#ffffff",
+    },
+  };
+
+  const palette = palettes[theme] ?? palettes.default;
+
+  Object.entries(palette).forEach(([variable, value]) => {
+    root.style.setProperty(variable, value);
+  });
+
+  root.style.setProperty("--accent-color", accentColor);
 }
