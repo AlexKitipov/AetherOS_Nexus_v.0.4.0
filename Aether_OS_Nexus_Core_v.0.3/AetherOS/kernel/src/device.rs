@@ -9,6 +9,9 @@ use core::cmp::Ordering;
 use spin::Mutex;
 
 use crate::kprintln;
+use crate::ADI::interface::ADIInterface;
+use crate::ADI::sandbox::model::DriverModel;
+use crate::ADI::sandbox::runtime::Runtime;
 
 pub type DeviceId = u64;
 pub type IoResult<T> = core::result::Result<T, IoError>;
@@ -87,6 +90,25 @@ impl VNode {
     pub fn has_cap(&self, dev: DeviceId, right: Right) -> bool {
         check_cap(self, dev, right)
     }
+
+    pub fn from_driver_model(_model: DriverModel, _runtime: Runtime) -> Self {
+        Self::default()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DeviceInfo {
+    driver_src: &'static str,
+}
+
+impl DeviceInfo {
+    pub fn new(driver_src: &'static str) -> Self {
+        Self { driver_src }
+    }
+
+    pub fn driver_source(&self) -> &str {
+        self.driver_src
+    }
 }
 
 pub fn check_cap(vnode: &VNode, dev: DeviceId, right: Right) -> bool {
@@ -155,6 +177,14 @@ impl DeviceManager {
     pub fn discovered_devices(&self) -> alloc::vec::Vec<DeviceId> {
         self.devices.keys().copied().collect()
     }
+
+    pub fn register_vnode(&mut self, _vnode: VNode) {}
+
+    fn probe_device(&mut self, device: DeviceInfo) {
+        if let Ok(vnode) = ADIInterface::load_driver(device) {
+            self.register_vnode(vnode);
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -213,6 +243,7 @@ pub fn boot_discover_devices() {
             DEVICE_NET0,
             &crate::drivers::net::VIRTIO_NET0,
         )));
+        manager.probe_device(DeviceInfo::new(""));
 
         let _ = crate::network::with_stack(|stack| {
             stack.bind_device(&crate::drivers::net::VIRTIO_NET0);
