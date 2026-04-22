@@ -469,3 +469,56 @@
   border-color: rgba(237, 93, 93, 0.7);
   color: #ffc9c9;
 }
+
+.terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px;
+  background: rgba(4, 8, 14, 0.98);
+  color: #d2f9ff;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+}
+
+.terminal-output {
+  flex: 1;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-bottom: 6px;
+}
+
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(77, 163, 255, 0.3);
+  padding-top: 8px;
+}
+
+.terminal-prompt {
+  color: #7ce7ff;
+  user-select: none;
+}
+
+.terminal-input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  font: inherit;
+}
+
+.terminal-line {
+  line-height: 1.4;
+}
+
+.terminal-line-info {
+  color: #9ab7c7;
+}
+
+.terminal-line-error {
+  color: #ff6b6b;
+}
