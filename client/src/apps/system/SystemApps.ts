@@ -1,4 +1,5 @@
 import type { OSApp, AppSandbox } from "@/process/types";
+import { createTerminalApp } from "@/apps/terminal/createTerminalApp";
 
 function buildSystemAppContent(title: string, description: string): (sandbox: AppSandbox) => HTMLElement {
   return (sandbox) => {
@@ -24,12 +25,7 @@ export const SystemApps: Record<string, OSApp> = {
     icon: "📁",
     entry: buildSystemAppContent("File Explorer", "Browse files and folders in the virtual filesystem."),
   },
-  TerminalEmulator: {
-    id: "terminal-emulator",
-    name: "Terminal Emulator",
-    icon: "🖥️",
-    entry: buildSystemAppContent("Terminal Emulator", "Run shell commands in a controlled simulated terminal."),
-  },
+  TerminalEmulator: createTerminalApp(),
   Settings: {
     id: "settings",
     name: "Settings",

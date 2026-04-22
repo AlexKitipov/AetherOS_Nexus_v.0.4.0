@@ -11,6 +11,7 @@ import { NotificationManager } from "@/notifications/NotificationManager";
 import { ModalManager } from "@/modals/ModalManager";
 import { AppRuntime } from "@/process/AppRuntime";
 import { SystemApps } from "@/apps/system/SystemApps";
+import { setShellServices } from "@/core/shellServices";
 
 export function initializeShellArchitecture(): void {
   const uiRoot = getUIRoot();
@@ -21,6 +22,11 @@ export function initializeShellArchitecture(): void {
 
   const virtualFS = new VirtualFS();
   seedDesktopFS(virtualFS);
+
+  setShellServices({
+    virtualFS,
+    appRuntime,
+  });
 
   registerSystemApps();
 
