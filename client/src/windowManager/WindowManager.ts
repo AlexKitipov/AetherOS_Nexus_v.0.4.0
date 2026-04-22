@@ -167,6 +167,13 @@ export class WindowManager {
     return this.activeWindowId;
   }
 
+  updateTheme(theme: string): void {
+    this.windowLayer.dataset.theme = theme;
+    this.windows.forEach((windowRef) => {
+      windowRef.element.dataset.theme = theme;
+    });
+  }
+
   private bindControlButtons(windowRef: OSWindow): void {
     const minimizeButton = windowRef.element.querySelector<HTMLButtonElement>(".btn-minimize");
     const maximizeButton = windowRef.element.querySelector<HTMLButtonElement>(".btn-maximize");

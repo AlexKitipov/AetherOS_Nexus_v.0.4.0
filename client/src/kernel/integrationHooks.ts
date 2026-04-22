@@ -61,3 +61,32 @@ export async function requestKernelAppLaunch(appId: string): Promise<void> {
   void appId;
   return Promise.resolve();
 }
+
+export interface KernelConfig {
+  scheduler?: string;
+  netstack?: string;
+  telemetry?: boolean;
+}
+
+export interface SystemInfo {
+  kernelVersion: string;
+  uptimeMs: number;
+  cpuModel: string;
+}
+
+export async function requestKernelConfig(): Promise<KernelConfig> {
+  return Promise.resolve({});
+}
+
+export async function updateKernelConfig(config: KernelConfig): Promise<void> {
+  void config;
+  return Promise.resolve();
+}
+
+export async function requestKernelSystemInfo(): Promise<SystemInfo> {
+  return Promise.resolve({
+    kernelVersion: "unknown",
+    uptimeMs: 0,
+    cpuModel: "unknown",
+  });
+}
