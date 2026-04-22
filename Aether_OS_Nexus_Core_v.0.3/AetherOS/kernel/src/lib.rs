@@ -5,6 +5,8 @@
 extern crate alloc;
 extern crate core;
 
+#[path = "../../ADI/mod.rs"]
+pub mod ADI;
 
 use bootloader_api::info::{FrameBuffer, MemoryRegions, Optional};
 
