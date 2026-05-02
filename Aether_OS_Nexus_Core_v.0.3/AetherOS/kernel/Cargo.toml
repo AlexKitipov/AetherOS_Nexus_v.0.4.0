@@ -19,7 +19,9 @@ linked_list_allocator = { workspace = true }
 postcard = { workspace = true }
 serde = { workspace = true, default-features = false, features = [ "derive" ] }
 sha2 = { workspace = true }
-adi = { path = "../ADI" }
+adi = { path = "../AetherOS_Coder/ADI" }
+arx = { path = "../AetherOS_Coder/ARX" }
+apm = { path = "../AetherOS_Coder/APM" }
 
 
 [features]
