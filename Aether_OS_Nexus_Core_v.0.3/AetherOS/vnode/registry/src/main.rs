@@ -1,6 +1,8 @@
-#![no_std]
-#![no_main]
-#![feature(alloc_error_handler)]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
+#![cfg_attr(target_os = "none", feature(alloc_error_handler))]
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -11,6 +13,7 @@ extern crate serde;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 
@@ -30,7 +33,7 @@ static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
@@ -59,7 +62,7 @@ impl RegistryVNode {
 struct NoopTransport;
 
 impl SwarmTransport for NoopTransport {
-    fn fetch_chunk_from_peer(&self, _peer: &PeerInfo, _cid: [u8; 32]) -> Result<Vec<u8>, SwarmError> {
+    fn fetch_chunk_from_peer(&mut self, _peer: &PeerInfo, _cid: [u8; 32]) -> Result<Vec<u8>, SwarmError> {
         Err(SwarmError::RoutingNotFound)
     }
 }
@@ -79,7 +82,7 @@ fn main() -> ! {
         vnode_id: 1,
     };
 
-    let swarm_engine = SwarmEngine::new(NoopTransport);
+    let mut swarm_engine = SwarmEngine::new(NoopTransport);
     let _ = swarm_engine.fetch_chunk_from_peer(&local_peer, manifest.root_cid);
 
     let search_service = GlobalSearchService::new();
@@ -99,12 +102,14 @@ fn main() -> ! {
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
     main()
 }
 
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}

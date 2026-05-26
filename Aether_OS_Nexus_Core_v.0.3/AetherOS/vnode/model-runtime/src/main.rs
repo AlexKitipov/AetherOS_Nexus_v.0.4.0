@@ -1,11 +1,12 @@
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 // vnode/model-runtime/src/main.rs
 
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
 
 extern crate alloc;
 
-use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -16,11 +17,10 @@ use alloc::string::{String, ToString};
 use common::ipc::vnode::VNodeChannel;
 use common::IpcSend;
 use common::syscall::{syscall3, SYS_LOG, SUCCESS, SYS_TIME};
-use common::ipc::IpcSend;
 use common::ipc::model_runtime_ipc::{InferRequest, InferResponse};
 use common::ipc::ai_governor_ipc::{AiGovernorRequest, AiGovernorResponse, AiPriority};
 use common::ipc::ui_protocol::UiResponse;
-use common::ipc::vfs_ipc::{VfsRequest, VfsResponse, Fd, VfsMetadata}; // For loading models
+use common::ipc::vfs_ipc::{VfsRequest, VfsResponse, Fd}; // For loading models
 
 // Temporary log function for V-Nodes
 
@@ -32,20 +32,18 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 fn log(msg: &str) {
-    unsafe {
-        let res = syscall3(
-            SYS_LOG,
-            msg.as_ptr() as u64,
-            msg.len() as u64,
-            0 // arg3 is unused for SYS_LOG
-        );
-        if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
-    }
+    let res = syscall3(
+        SYS_LOG,
+        msg.as_ptr() as u64,
+        msg.len() as u64,
+        0 // arg3 is unused for SYS_LOG
+    );
+    if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
 }
 
 // Placeholder for a loaded ML model
@@ -124,9 +122,12 @@ impl ModelRuntimeService {
 
     // Conceptual: Load a model from VFS
     fn load_model(&mut self, model_id: &str, path: &str) -> Result<&LoadedModel, String> {
-        if let Some(model) = self.loaded_models.get(model_id) {
+        if self.loaded_models.contains_key(model_id) {
             log(&alloc::format!("Model Runtime: Model '{}' already loaded.", model_id));
-            return Ok(model);
+            return self
+                .loaded_models
+                .get(model_id)
+                .ok_or_else(|| String::from("Model cache lookup failed."));
         }
 
         log(&alloc::format!("Model Runtime: Loading model '{}' from VFS path '{}'.", model_id, path));
@@ -149,7 +150,7 @@ impl ModelRuntimeService {
             },
             _ => {
                 let _ = self.vfs_chan.send_and_recv::<VfsRequest, VfsResponse>(&VfsRequest::Close { fd });
-                return Err(String::from("Unexpected VFS response during model read.")),
+                return Err(String::from("Unexpected VFS response during model read."));
             },
         };
 
@@ -208,7 +209,7 @@ impl ModelRuntimeService {
                 // Attempt to load the model (or retrieve from cache)
                 let model = match self.load_model(&model_id, &alloc::format!("/models/{}/image_classifier.bin", model_id)) {
                     Ok(m) => m,
-                    Err(e) => return InferResponse::Error(alloc::format!("Failed to load model: {}.", e)),
+                    Err(e) => return InferResponse::Error { message: alloc::format!("Failed to load model: {}.", e) },
                 };
 
                 // Simulate inference
@@ -224,7 +225,7 @@ impl ModelRuntimeService {
                 // Attempt to load the model (or retrieve from cache)
                 let model = match self.load_model(&model_id, &alloc::format!("/models/{}/text_generator.bin", model_id)) {
                     Ok(m) => m,
-                    Err(e) => return InferResponse::Error(alloc::format!("Failed to load model: {}.", e)),
+                    Err(e) => return InferResponse::Error { message: alloc::format!("Failed to load model: {}.", e) },
                 };
 
                 // Simulate inference
@@ -252,11 +253,12 @@ impl ModelRuntimeService {
             }
 
             // Yield to other V-Nodes to prevent busy-waiting
-            unsafe { syscall3(SYS_TIME, 0, 0, 0); } // This will cause a context switch
+            let _ = syscall3(SYS_TIME, 0, 0, 0); // This will cause a context switch
         }
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -269,6 +271,15 @@ pub extern "C" fn _start() -> ! {
     model_runtime_service.run_loop();
 }
 
+#[cfg(not(target_os = "none"))]
+fn main() {
+    // Host build stub for CI/check tooling.
+}
+
+#[cfg(target_os = "none")]
+use core::panic::PanicInfo;
+
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     log(&alloc::format!("Model Runtime V-Node panicked! Info: {:?}.", info));

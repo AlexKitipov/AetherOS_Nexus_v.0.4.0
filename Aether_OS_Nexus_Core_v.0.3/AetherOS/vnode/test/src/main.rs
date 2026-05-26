@@ -1,9 +1,12 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 extern crate alloc;
 
 use alloc::vec;
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 
 use common::ipc::vfs_ipc::VfsRequest;
@@ -19,7 +22,7 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
@@ -58,6 +61,7 @@ fn send_vfs_read_request(channel_id: u64, path: &str) {
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -78,6 +82,14 @@ pub extern "C" fn _start() -> ! {
     loop { }
 }
 
+#[cfg(not(target_os = "none"))]
+fn main() {
+    // Host stub for workspace builds; the real vnode entrypoint is `_start` on bare-metal targets.
+    init_allocator();
+    let _ = vec![0u8; 8];
+}
+
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop { }
