@@ -1,43 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@shared/routes";
+import type { KernelModule, KernelRequest as KernelCommand, KernelResponse as KernelCommandResponse, KernelTask, StatusSnapshot as KernelStatus } from "@/types/kernel";
 
-export type KernelModuleStatus = {
-  id: string;
-  name: string;
-  mutable: boolean;
-  state: "active" | "inactive";
-};
-
-export type KernelTask = {
-  id: string;
-  command: string;
-  status: "queued" | "running" | "completed";
-  createdAt: string;
-};
-
-export type KernelStatus = {
-  cpu: number;
-  memory: number;
-  modules: KernelModuleStatus[];
-  uptime: number;
-  taskCount: number;
-};
-
-export type KernelCommand =
-  | { type: "inspect.status" }
-  | { type: "inspect.processes" }
-  | { type: "task.run"; payload: { command: string } }
-  | { type: "task.manage"; payload: { action: "stop" | "resume"; taskId: string } }
-  | { type: "module.manage"; payload: { moduleId: string; enabled: boolean } };
-
-export type KernelCommandResponse = {
-  ok: boolean;
-  channel: "ui.bridge";
-  type: string;
-  timestamp: string;
-  data?: unknown;
-  error?: string;
-};
+export type KernelModuleStatus = KernelModule;
 
 export function useKernelStatus() {
   return useQuery({
