@@ -1,4 +1,4 @@
-export type KernelCapability = "kernel.inspect" | "task.run" | "task.manage" | "module.manage";
+import type { KernelCapability, KernelModule, KernelRequest as KernelCommand, KernelResponse, KernelTask } from "@shared/kernelAbi";
 
 export type KernelRole = "viewer" | "operator" | "admin";
 
@@ -8,35 +8,6 @@ export type InterfaceSession = {
   capabilities: KernelCapability[];
 };
 
-export type KernelTask = {
-  id: string;
-  command: string;
-  status: "queued" | "running" | "completed";
-  createdAt: string;
-};
-
-export type KernelModule = {
-  id: string;
-  name: string;
-  mutable: boolean;
-  state: "active" | "inactive";
-};
-
-export type KernelCommand =
-  | { type: "inspect.status" }
-  | { type: "inspect.processes" }
-  | { type: "task.run"; payload: { command: string } }
-  | { type: "task.manage"; payload: { action: "stop" | "resume"; taskId: string } }
-  | { type: "module.manage"; payload: { moduleId: string; enabled: boolean } };
-
-export type KernelResponse = {
-  ok: boolean;
-  channel: "ui.bridge";
-  type: KernelCommand["type"];
-  timestamp: string;
-  data?: unknown;
-  error?: string;
-};
 
 const ROLE_CAPABILITIES: Record<KernelRole, KernelCapability[]> = {
   viewer: ["kernel.inspect"],

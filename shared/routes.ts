@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { insertConversationSchema, insertMessageSchema, conversations, messages } from './models/chat';
+import { kernelModuleSchema, kernelRequestSchema, kernelResponseSchema, kernelTaskSchema, statusSnapshotSchema } from './kernelAbi';
 
 export const errorSchemas = {
   validation: z.object({
@@ -14,44 +15,6 @@ export const errorSchemas = {
   }),
 };
 
-const kernelModuleSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  mutable: z.boolean(),
-  state: z.enum(['active', 'inactive']),
-});
-
-const kernelTaskSchema = z.object({
-  id: z.string(),
-  command: z.string(),
-  status: z.enum(['queued', 'running', 'completed']),
-  createdAt: z.string(),
-});
-
-const kernelCommandSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('inspect.status') }),
-  z.object({ type: z.literal('inspect.processes') }),
-  z.object({
-    type: z.literal('task.run'),
-    payload: z.object({
-      command: z.string().min(1),
-    }),
-  }),
-  z.object({
-    type: z.literal('task.manage'),
-    payload: z.object({
-      action: z.enum(['stop', 'resume']),
-      taskId: z.string(),
-    }),
-  }),
-  z.object({
-    type: z.literal('module.manage'),
-    payload: z.object({
-      moduleId: z.string(),
-      enabled: z.boolean(),
-    }),
-  }),
-]);
 
 export const api = {
   chat: {
@@ -114,13 +77,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/kernel/status' as const,
       responses: {
-        200: z.object({
-          cpu: z.number(),
-          memory: z.number(),
-          modules: z.array(kernelModuleSchema),
-          uptime: z.number(),
-          taskCount: z.number(),
-        }),
+        200: statusSnapshotSchema,
       },
     },
     processes: {
@@ -133,16 +90,9 @@ export const api = {
     command: {
       method: 'POST' as const,
       path: '/api/kernel/command' as const,
-      input: kernelCommandSchema,
+      input: kernelRequestSchema,
       responses: {
-        200: z.object({
-          ok: z.boolean(),
-          channel: z.literal('ui.bridge'),
-          type: z.string(),
-          timestamp: z.string(),
-          data: z.unknown().optional(),
-          error: z.string().optional(),
-        }),
+        200: kernelResponseSchema,
       },
     },
   },
