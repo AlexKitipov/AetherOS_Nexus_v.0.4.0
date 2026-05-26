@@ -1,15 +1,17 @@
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 // vnode/dns-resolver/src/main.rs
 
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
 
 extern crate alloc;
 
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
-use alloc::format;
 use alloc::string::{String, ToString};
 
 use common::ipc::vnode::VNodeChannel;
@@ -28,20 +30,18 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 fn log(msg: &str) {
-    unsafe {
-        let res = syscall3(
-            SYS_LOG,
-            msg.as_ptr() as u64,
-            msg.len() as u64,
-            0 // arg3 is unused for SYS_LOG
-        );
-        if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
-    }
+    let res = syscall3(
+        SYS_LOG,
+        msg.as_ptr() as u64,
+        msg.len() as u64,
+        0 // arg3 is unused for SYS_LOG
+    );
+    if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
 }
 
 // Placeholder for DNS cache entry
@@ -167,7 +167,7 @@ impl DnsResolver {
             },
             _ => {
                 log("DNS Resolver: Unexpected response during DNS response receive.");
-                DnsResponse::Error { message: "Unexpected response during DNS response receive".to_string() };
+                DnsResponse::Error { message: "Unexpected response during DNS response receive".to_string() }
             }
         }
     }
@@ -175,7 +175,7 @@ impl DnsResolver {
     fn run_loop(&mut self) -> ! {
         log("DNS Resolver: Entering main event loop.");
         loop {
-            let current_time_ms = unsafe { syscall3(SYS_TIME, 0, 0, 0) * 10 }; // Assuming 1 tick = 10 ms
+            let current_time_ms = syscall3(SYS_TIME, 0, 0, 0) * 10; // Assuming 1 tick = 10 ms
 
             // 1. Process incoming DNS queries from client V-Nodes
             if let Ok(Some(req_data)) = self.client_chan.recv_non_blocking() {
@@ -208,11 +208,12 @@ impl DnsResolver {
             }
 
             // Yield to other V-Nodes to prevent busy-waiting
-            unsafe { syscall3(SYS_TIME, 0, 0, 0); } // This will cause a context switch
+            let _ = syscall3(SYS_TIME, 0, 0, 0); // This will cause a context switch
         }
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -224,10 +225,17 @@ pub extern "C" fn _start() -> ! {
     dns_resolver.run_loop();
 }
 
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     log(&alloc::format!("DNS Resolver V-Node panicked! Info: {:?}.", info));
     // In a production system, this might trigger a system-wide error handler or reboot.
     // For now, it enters an infinite loop to prevent further execution.
     loop {}
+}
+
+
+#[cfg(not(target_os = "none"))]
+fn main() {
+    panic!("dns-resolver V-Node is intended for target_os=none builds");
 }

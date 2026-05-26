@@ -1,8 +1,10 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(not(target_os = "linux"), no_std)]
+#![cfg_attr(not(target_os = "linux"), no_main)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 extern crate alloc;
 
+#[cfg(not(target_os = "linux"))]
 use core::panic::PanicInfo;
 
 use linked_list_allocator::LockedHeap;
@@ -16,17 +18,24 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 
+#[cfg(not(target_os = "linux"))]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
     loop { }
 }
 
+#[cfg(target_os = "linux")]
+fn main() {
+    init_allocator();
+}
+
+#[cfg(not(target_os = "linux"))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop { }

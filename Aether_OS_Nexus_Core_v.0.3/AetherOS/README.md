@@ -78,6 +78,8 @@ aetheros/
 
 This project uses the modern `bootloader_api` flow. Legacy `bootloader` 0.10 / `bootimage` commands are not used.
 
+> If you run `cargo bootimage` with `bootloader 0.11.15`, it will fail because the legacy `bootimage` tool does not support the newer bootloader metadata flow.
+
 ### Prerequisites
 
 - Rust nightly
@@ -85,8 +87,8 @@ This project uses the modern `bootloader_api` flow. Legacy `bootloader` 0.10 / `
 - QEMU (`qemu-system-x86_64`)
 
 ```bash
-rustup toolchain install nightly-2024-12-01
-rustup override set nightly-2024-12-01
+rustup toolchain install nightly-2025-03-01
+rustup override set nightly-2025-03-01
 rustup component add rust-src
 rustup component add llvm-tools-preview
 ```
@@ -96,7 +98,7 @@ rustup component add llvm-tools-preview
 From `AetherOS/`:
 
 ```bash
-cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
+cargo +nightly-2025-03-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
 ```
 
 Or use the helper:
@@ -107,9 +109,7 @@ Or use the helper:
 
 ### Run in QEMU
 
-```bash
-qemu-system-x86_64 -kernel target/aetheros-x86_64/release/aetheros-kernel
-```
+This kernel is a bare-metal ELF image and is not directly bootable with `qemu-system-x86_64 -kernel` unless it is wrapped by a compatible bootloader or UEFI image.
 
 ### Workspace helper flow
 
@@ -163,7 +163,7 @@ error: unknown `-Z` flag specified: json-target-spec
 
 you are likely using stale build instructions, `bootimage`/legacy metadata flow, an unpinned nightly, or a mixed toolchain
 invocation where `cargo` and `rustc` come from different nightlies. This repo uses `bootloader_api` and
-`cargo +nightly-2024-12-01 build` directly (without `-Zjson-target-spec`).
+`cargo +nightly-2025-03-01 build` directly (without `-Zjson-target-spec`).
 Run `./scripts/build_kernel_image.sh` (or the build command above) instead of `cargo bootimage`.
 
 If you see:
@@ -182,7 +182,7 @@ Recommended fix:
 1. Remove or rename the global alias from `~/.cargo/config` or `~/.cargo/config.toml`.
 2. Use the pinned build flow from this repo:
    - `./scripts/build_kernel_image.sh`
-   - or `cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem`
+   - or `cargo +nightly-2025-03-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem`
 
 To inspect active alias configuration:
 

@@ -1,10 +1,12 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 extern crate alloc;
 
 use alloc::format;
 use alloc::string::String;
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 
@@ -42,7 +44,7 @@ fn init_allocator() {
     unsafe {
         GLOBAL_ALLOCATOR
             .lock()
-            .init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+            .init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
@@ -229,16 +231,13 @@ fn decode_scancode(raw: &[u8], recv_len: u64) -> Option<u8> {
 }
 
 fn ack_keyboard_irq() {
-    unsafe {
-        let ack_res = syscall3(SYS_IRQ_ACK, KEYBOARD_IRQ, 0, 0);
-        if ack_res != SUCCESS {
-            log(&format!("Keyboard V-Node failed to ACK IRQ1: {}", ack_res));
-        }
+    let ack_res = syscall3(SYS_IRQ_ACK, KEYBOARD_IRQ, 0, 0);
+    if ack_res != SUCCESS {
+        log(&format!("Keyboard V-Node failed to ACK IRQ1: {}", ack_res));
     }
 }
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn vnode_main() -> ! {
     init_allocator();
     let irq_chan = VNodeChannel::new(KEYBOARD_IRQ_CHANNEL_ID);
     let mut input_chan = VNodeChannel::new(SYSTEM_INPUT_CHANNEL_ID);
@@ -252,12 +251,10 @@ pub extern "C" fn _start() -> ! {
         pid: None,
     });
 
-    unsafe {
-        let res = syscall3(SYS_IRQ_REGISTER, KEYBOARD_IRQ, irq_chan.id as u64, 0);
-        if res != SUCCESS {
-            log(&format!("Keyboard V-Node failed to register IRQ1: {}", res));
-            panic!("IRQ1 registration failed");
-        }
+    let res = syscall3(SYS_IRQ_REGISTER, KEYBOARD_IRQ, irq_chan.id as u64, 0);
+    if res != SUCCESS {
+        log(&format!("Keyboard V-Node failed to register IRQ1: {}", res));
+        panic!("IRQ1 registration failed");
     }
 
     log("Keyboard V-Node started and IRQ1 registered.");
@@ -267,14 +264,12 @@ pub extern "C" fn _start() -> ! {
     let mut shift_active = false;
     let mut caps_lock_active = false;
     loop {
-        let recv_len = unsafe {
-            syscall3(
-                SYS_IPC_RECV,
-                irq_chan.id as u64,
-                raw.as_mut_ptr() as u64,
-                raw.len() as u64,
-            )
-        };
+        let recv_len = syscall3(
+            SYS_IPC_RECV,
+            irq_chan.id as u64,
+            raw.as_mut_ptr() as u64,
+            raw.len() as u64,
+        );
 
         if recv_len == 0 || recv_len == E_ERROR {
             continue;
@@ -334,7 +329,7 @@ pub extern "C" fn _start() -> ! {
                 log("keyboard: failed to forward key event to webview.");
             }
             let command_to_dispatch = if ch == b'\n' {
-                let completed = prompt.trim().to_string();
+                let completed = String::from(prompt.trim());
                 update_prompt(&mut prompt, ch);
                 if completed.is_empty() {
                     None
@@ -374,8 +369,20 @@ pub extern "C" fn _start() -> ! {
     }
 }
 
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     log(&format!("Keyboard V-Node panic: {:?}", info));
     loop {}
+}
+
+#[cfg(target_os = "none")]
+#[no_mangle]
+pub extern "C" fn _start() -> ! {
+    vnode_main()
+}
+
+#[cfg(not(target_os = "none"))]
+fn main() {
+    vnode_main()
 }

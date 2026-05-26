@@ -1,19 +1,16 @@
-#![no_std]
-#![no_main]
-
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 extern crate alloc;
 
-use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
-use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::ToString;
 
-use crate::ipc::vnode::VNodeChannel;
-use crate::syscall::{syscall3, SYS_LOG, SUCCESS, SYS_TIME};
-use crate::ipc::net_ipc::{NetStackRequest, NetStackResponse};
-use crate::ipc::socket_ipc::{SocketRequest, SocketResponse, SocketFd};
+use common::ipc::vnode::VNodeChannel;
+use common::ipc::IpcSend;
+use common::syscall::{syscall3, SYS_LOG, SUCCESS, SYS_TIME};
+use common::ipc::net_ipc::{NetStackRequest, NetStackResponse};
+use common::ipc::socket_ipc::{SocketRequest, SocketResponse, SocketFd};
 
 // Temporary log function for V-Nodes
 
@@ -25,20 +22,18 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 fn log(msg: &str) {
-    unsafe {
-        let res = syscall3(
-            SYS_LOG,
-            msg.as_ptr() as u64,
-            msg.len() as u64,
-            0 // arg3 is unused for SYS_LOG
-        );
-        if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
-    }
+    let res = syscall3(
+        SYS_LOG,
+        msg.as_ptr() as u64,
+        msg.len() as u64,
+        0 // arg3 is unused for SYS_LOG
+    );
+    if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
 }
 
 // Placeholder for socket state (simulated file descriptor management)
@@ -50,8 +45,7 @@ struct SocketInfo {
     // Add more state as needed, e.g., remote address for connected sockets
 }
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+fn main() -> ! {
     init_allocator();
     // Channel for requests from client V-Nodes to this socket-api V-Node
     let mut client_chan = VNodeChannel::new(4); // Assuming channel ID 4 for socket-api
@@ -73,7 +67,7 @@ pub extern "C" fn _start() -> ! {
                 log(&alloc::format!("SocketAPI: Received request from client: {:?}", request));
 
                 let response = match request {
-                    SocketRequest::Socket { domain, ty, protocol } => {
+                    SocketRequest::Socket { domain: _, ty, protocol: _ } => {
                         // For now, only AF_INET (domain 2), SOCK_STREAM (type 1), SOCK_DGRAM (type 2) are conceptual
                         // Map our type to aethernet-service's type (0=TCP, 1=UDP)
                         let net_sock_type = match ty {
@@ -81,7 +75,9 @@ pub extern "C" fn _start() -> ! {
                             2 => 1, // SOCK_DGRAM -> UDP
                             _ => {
                                 log(&alloc::format!("SocketAPI: Unsupported socket type: {}", ty));
-                                return SocketResponse::Error(100, "Unsupported socket type".to_string());
+                                client_chan.send(&SocketResponse::Error(100, "Unsupported socket type".to_string()))
+                                    .unwrap_or_else(|_| log("SocketAPI: Failed to send response to client."));
+                                continue;
                             }
                         };
 
@@ -113,7 +109,9 @@ pub extern "C" fn _start() -> ! {
                                 2 => 1, // SOCK_DGRAM -> UDP
                                 _ => {
                                     log(&alloc::format!("SocketAPI: Cannot bind unsupported socket type: {}", socket_info.socket_type));
-                                    return SocketResponse::Error(100, "Unsupported socket type for bind".to_string());
+                                    client_chan.send(&SocketResponse::Error(100, "Unsupported socket type for bind".to_string()))
+                                        .unwrap_or_else(|_| log("SocketAPI: Failed to send response to client."));
+                                    continue;
                                 }
                             };
                             match net_chan.send_and_recv::<NetStackRequest, NetStackResponse>(&NetStackRequest::OpenSocket(net_sock_type, port)) {
@@ -201,14 +199,16 @@ pub extern "C" fn _start() -> ! {
                     SocketRequest::Send { fd, data } => {
                         if let Some(socket_info) = sockets.get(&fd) {
                             let net_req = if socket_info.socket_type == 1 { // TCP
-                                NetStackRequest::Send(socket_info.net_socket_handle, data)
+                                NetStackRequest::Send(socket_info.net_socket_handle, data.clone())
                             } else if socket_info.socket_type == 2 { // UDP (assuming connect has set a default peer)
                                 // AetherNet's `Send` is generic enough to handle UDP send to default peer
-                                NetStackRequest::Send(socket_info.net_socket_handle, data)
+                                NetStackRequest::Send(socket_info.net_socket_handle, data.clone())
                             } else {
                                 log(&alloc::format!("SocketAPI: Unsupported socket type {} for send on fd {}.
 ", socket_info.socket_type, fd));
-                                return SocketResponse::Error(100, "Unsupported socket type for send".to_string());
+                                client_chan.send(&SocketResponse::Error(100, "Unsupported socket type for send".to_string()))
+                                    .unwrap_or_else(|_| log("SocketAPI: Failed to send response to client."));
+                                continue;
                             };
 
                             match net_chan.send_and_recv::<NetStackRequest, NetStackResponse>(&net_req) {
@@ -286,12 +286,6 @@ pub extern "C" fn _start() -> ! {
         // the 'net_chan' for incoming unsolicited messages from aethernet-service (e.g.,
         // for accepted connections, or asynchronous incoming data for non-blocking sockets).
 
-        unsafe { syscall3(SYS_TIME, 0, 0, 0); } // Yield to other V-Nodes
+        let _ = syscall3(SYS_TIME, 0, 0, 0); // Yield to other V-Nodes
     }
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    log(&alloc::format!("Socket API V-Node panicked! Info: {:?}", info));
-    loop {}
 }

@@ -1,7 +1,8 @@
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 // vnode/mail-service/src/main.rs
 
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
 
 extern crate alloc;
 
@@ -9,7 +10,6 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 
 use common::ipc::dns_ipc::{DnsRequest, DnsResponse};
@@ -30,16 +30,14 @@ fn init_allocator() {
     unsafe {
         GLOBAL_ALLOCATOR
             .lock()
-            .init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+            .init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 fn log(msg: &str) {
-    unsafe {
-        let res = syscall3(SYS_LOG, msg.as_ptr() as u64, msg.len() as u64, 0);
-        if res != SUCCESS {
-            // Ignore transient logging failures inside service loop.
-        }
+    let res = syscall3(SYS_LOG, msg.as_ptr() as u64, msg.len() as u64, 0);
+    if res != SUCCESS {
+        // Ignore transient logging failures inside service loop.
     }
 }
 
@@ -253,13 +251,12 @@ impl MailService {
                 }
             }
 
-            unsafe {
-                syscall3(SYS_TIME, 0, 0, 0);
-            }
+            let _ = syscall3(SYS_TIME, 0, 0, 0);
         }
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -267,8 +264,21 @@ pub extern "C" fn _start() -> ! {
     mail_service.run_loop();
 }
 
+
+#[cfg(target_os = "none")]
+use core::panic::PanicInfo;
+
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     log(&format!("Mail V-Node panicked! Info: {:?}.", info));
     loop {}
+}
+
+
+#[cfg(not(target_os = "none"))]
+fn main() {
+    init_allocator();
+    let mut mail_service = MailService::new(10, 7, 4, 5);
+    mail_service.run_loop();
 }

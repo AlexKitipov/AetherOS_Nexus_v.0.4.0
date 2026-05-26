@@ -1,6 +1,8 @@
-#![no_std]
-#![no_main]
-#![feature(alloc_error_handler)]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
+#![cfg_attr(target_os = "none", feature(alloc_error_handler))]
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -13,6 +15,7 @@ use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 
@@ -27,6 +30,7 @@ static mut VNODE_HEAP: [u8; VNODE_HEAP_SIZE] = [0; VNODE_HEAP_SIZE];
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
+#[cfg(target_os = "none")]
 #[alloc_error_handler]
 fn alloc_error_handler(_layout: core::alloc::Layout) -> ! {
     loop {}
@@ -34,7 +38,7 @@ fn alloc_error_handler(_layout: core::alloc::Layout) -> ! {
 
 fn init_allocator() {
     unsafe {
-        ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
@@ -160,6 +164,7 @@ impl InitService {
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -168,12 +173,13 @@ pub extern "C" fn _start() -> ! {
     init_service.run_loop();
 }
 
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-fn main() -> ! {
-    // TODO: реална логика за init-service
-    loop {}
+#[cfg(not(target_os = "none"))]
+fn main() {
+    // Host build stub.
 }

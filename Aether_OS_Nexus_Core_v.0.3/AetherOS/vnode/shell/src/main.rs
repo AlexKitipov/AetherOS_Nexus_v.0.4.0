@@ -1,23 +1,24 @@
+#![allow(dead_code)]
+#![allow(dead_code, unused_imports, unused_unsafe, unused_variables, static_mut_refs)]
 
 // vnode/shell/src/main.rs
 
-#![no_std]
-#![no_main]
+#![cfg_attr(target_os = "none", no_std)]
+#![cfg_attr(target_os = "none", no_main)]
 
 extern crate alloc;
 
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use alloc::vec::Vec;
-use alloc::collections::BTreeMap;
-use alloc::format;
 use alloc::string::{String, ToString};
 
 use common::ipc::vnode::VNodeChannel;
 use common::IpcSend;
 use common::syscall::{syscall3, SYS_LOG, SUCCESS, SYS_TIME};
 use common::shell_ipc::{ShellRequest, ShellResponse, LogLevel};
-use common::vfs_ipc::{VfsRequest, VfsResponse, Fd, VfsMetadata};
+use common::vfs_ipc::{VfsRequest, VfsResponse};
 use common::init_ipc::{InitRequest, InitResponse};
 use common::dns_ipc::{DnsRequest, DnsResponse};
 use common::logger_ipc::{LoggerRequest, LoggerResponse};
@@ -35,20 +36,18 @@ static GLOBAL_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 fn init_allocator() {
     unsafe {
-        GLOBAL_ALLOCATOR.lock().init(VNODE_HEAP.as_mut_ptr(), VNODE_HEAP_SIZE);
+        GLOBAL_ALLOCATOR.lock().init(core::ptr::addr_of_mut!(VNODE_HEAP).cast::<u8>(), VNODE_HEAP_SIZE);
     }
 }
 
 fn log(msg: &str) {
-    unsafe {
-        let res = syscall3(
-            SYS_LOG,
-            msg.as_ptr() as u64,
-            msg.len() as u64,
-            0 // arg3 is unused for SYS_LOG
-        );
-        if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
-    }
+    let res = syscall3(
+        SYS_LOG,
+        msg.as_ptr() as u64,
+        msg.len() as u64,
+        0, // arg3 is unused for SYS_LOG
+    );
+    if res != SUCCESS { /* Handle log error, maybe panic or fall back */ }
 }
 
 // Placeholder for shell state
@@ -160,13 +159,13 @@ impl ShellService {
                 }
             },
             "logger" => { // This will now be handled by RunLoggerCommand variant directly
-                return ShellResponse::Error("logger: Please use 'log' command with specific options (e.g., 'log info "message"')".to_string());
+                return ShellResponse::Error("logger: Please use 'log' command with specific options (e.g., 'log info \"message\"')".to_string());
             },
             "echo" => { // This will now be handled by RunEchoCommand variant directly
-                return ShellResponse::Error("echo: Please use 'echo' command (e.g., 'echo "hello"')".to_string());
+                return ShellResponse::Error("echo: Please use 'echo' command (e.g., 'echo \"hello\"')".to_string());
             },
             "test" => { // This will now be handled by RunTestCommand variant directly
-                return ShellResponse::Error("test: Please use 'test' command with specific options (e.g., 'test echo "message"')".to_string());
+                return ShellResponse::Error("test: Please use 'test' command with specific options (e.g., 'test echo \"message\"')".to_string());
             },
             _ => ShellResponse::CommandOutput { stdout: format!("Command '{}' not found.
 ", command), stderr: String::new(), exit_code: 127 },
@@ -198,7 +197,7 @@ impl ShellService {
                                 args2.insert(0, stdout.trim().to_string()); // Prepend stdout as first argument
                             }
                             return self.execute_internal_command(cmd2, args2);
-                        } else if let ShellResponse::Error { message } = first_response {
+                        } else if let ShellResponse::Error(message) = first_response {
                             return ShellResponse::Error(format!("Pipe error (cmd1): {}", message));
                         } else {
                             return ShellResponse::Error("Pipe error: unexpected response from first command.".to_string());
@@ -291,11 +290,12 @@ impl ShellService {
             }
 
             // Yield to other V-Nodes to prevent busy-waiting
-            unsafe { syscall3(SYS_TIME, 0, 0, 0); }
+            let _ = syscall3(SYS_TIME, 0, 0, 0);
         }
     }
 }
 
+#[cfg(target_os = "none")]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     init_allocator();
@@ -311,8 +311,12 @@ pub extern "C" fn _start() -> ! {
     shell_service.run_loop();
 }
 
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     log("Shell V-Node panicked!");
     loop {}
 }
+
+#[cfg(not(target_os = "none"))]
+fn main() {}
