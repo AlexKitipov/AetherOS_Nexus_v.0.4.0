@@ -13,7 +13,7 @@ The Rust kernel and its `common`/`vnode` crates are the source of truth for OS b
 - The root `Cargo.toml` is a wrapper over that Rust workspace so basic Cargo commands can be run from the repository root without moving the core crates.
 - Root-level `kernel/` currently contains ABI contract/documentation support only and is not the authoritative kernel implementation.
 - Root-level TypeScript code is an optional Nexus UI/server prototype.
-- Claims such as fully immutable V-Nodes, production zero-copy IPC, and complete zero-copy networking are roadmap goals unless specifically implemented in the Rust core.
+- Claims such as fully immutable V-Nodes, production zero-copy IPC, complete zero-copy networking, AI-assisted driver translation, decentralized trust, and federation are roadmap goals unless specifically implemented and tested in the Rust core. See `docs/ROADMAP.md` for future goals.
 
 ## Repository Layout
 
@@ -83,6 +83,7 @@ npm run check
 
 - `docs/BUILDING.md` documents the unified Rust toolchain and root/core build commands.
 - `docs/ARCHITECTURE.md` describes the current split architecture, root support-directory boundaries, and roadmap boundaries.
+- `docs/ROADMAP.md` collects future goals and aspirational claims that are not current repository guarantees.
 - `docs/SYSCALL-ABI.md` documents the current syscall ABI version and stabilization expectations.
 - `docs/PR-ROADMAP.md` turns the repository audit into a staged PR plan.
 

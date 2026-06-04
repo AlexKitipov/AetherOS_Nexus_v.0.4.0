@@ -36,7 +36,7 @@ At a high level:
 - Capabilities describe which actions or channels a V-Node may use.
 - Kernel-side checks are expected to reject operations without the required capability.
 
-The long-term goal is for V-Nodes to become immutable, content-addressed, cryptographically verifiable bundles with reproducible manifests and stable capability hashes. That is not yet complete and should be documented as a roadmap item until implemented and tested.
+The long-term goal is for V-Nodes to become immutable, content-addressed, cryptographically verifiable bundles with reproducible manifests and stable capability hashes. That is not yet complete and is tracked as roadmap language in [`docs/ROADMAP.md`](ROADMAP.md) until implemented and tested.
 
 ## IPC and Networking Status
 
@@ -46,7 +46,7 @@ Current safe wording:
 
 - IPC exists and is part of the kernel/V-Node design.
 - Some paths may use shared buffers or low-copy techniques.
-- Formal zero-copy ownership transfer and complete zero-copy networking are future goals.
+- Formal zero-copy ownership transfer and complete zero-copy networking are future goals tracked in [`docs/ROADMAP.md`](ROADMAP.md).
 
 ## Build Model
 
