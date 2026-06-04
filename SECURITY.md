@@ -13,6 +13,8 @@ AetherOS Nexus is an experimental operating-system research repository. Please d
 
 ## Current Security Model
 
+See `docs/SECURITY-MODEL.md` for validation notes covering V-Node capability checks, ABI boundary checks, and known limitations.
+
 Implemented or partially implemented areas include:
 
 - Rust-first kernel and shared crates to reduce memory-safety defects in core code.
