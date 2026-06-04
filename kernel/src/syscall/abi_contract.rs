@@ -1,6 +1,9 @@
 //! Syscall ABI contract validation.
 
-pub const ABI_VERSION: u32 = 2;
+pub const SYSCALL_ABI_VERSION: u32 = 2;
+
+/// Backward-compatible alias for local ABI contract tests.
+pub const ABI_VERSION: u32 = SYSCALL_ABI_VERSION;
 pub const MAX_SYSCALL_ARGS: usize = 6;
 pub const MAX_SYSCALL_NUM: usize = 20;
 
