@@ -18,6 +18,7 @@ pub mod channel;
 pub mod message;
 pub mod nexus_msg;
 pub mod vnode_heap;
+pub mod vnode_manifest;
 
 pub mod ui;
 
