@@ -1,0 +1,13 @@
+[package]
+name = "aetheros-image-builder"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+default = ["uefi"]
+uefi = ["bootloader/uefi"]
+bios = ["bootloader/bios"]
+
+[dependencies]
+bootloader = { workspace = true }

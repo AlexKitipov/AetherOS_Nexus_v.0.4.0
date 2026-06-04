@@ -2,14 +2,19 @@
 
 extern crate alloc;
 use alloc::collections::{BTreeMap, VecDeque};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use spin::Mutex;
 use x86_64::instructions::interrupts;
+use x86_64::structures::idt::InterruptStackFrame;
+use x86_64::structures::paging::{FrameDeallocator, PhysFrame, Size4KiB};
+use x86_64::PhysAddr;
 
-use crate::kprintln;
-use crate::memory::page_allocator::PageAllocator;
-use crate::task::tcb::{Context, TaskControlBlock, TaskState};
 use crate::caps::Capability;
+use crate::kprintln;
+use crate::memory::frame_allocator::GlobalFrameAllocator;
+use crate::memory::page_allocator::PageAllocator;
+use crate::task::context_switch;
+use crate::task::tcb::{Context, TaskControlBlock, TaskState};
 
 const MILLICORES_PER_CORE: u32 = 1000;
 
@@ -51,6 +56,10 @@ static TASKS: Mutex<BTreeMap<u64, TaskControlBlock>> = Mutex::new(BTreeMap::new(
 
 /// The ID of the currently executing task.
 static CURRENT_TASK_ID: Mutex<u64> = Mutex::new(0); // Starts with kernel as task 0
+static CURRENT_TASK_ID_IRQ: AtomicU64 = AtomicU64::new(0);
+static CURRENT_TIMESLICE_TICKS_IRQ: AtomicU64 =
+    AtomicU64::new(TaskControlBlock::DEFAULT_TIMESLICE_TICKS);
+static CURRENT_CONSUMED_TICKS_IRQ: AtomicU64 = AtomicU64::new(0);
 static RESCHEDULE_REQUESTED: AtomicBool = AtomicBool::new(true);
 
 /// Initializes the scheduler, setting up necessary data structures.
@@ -91,6 +100,7 @@ pub fn init() {
     }
 
     *CURRENT_TASK_ID.lock() = kernel_task.id;
+    publish_current_task_for_irq(kernel_task.id, kernel_task.timeslice_ticks, 0);
 
     kprintln!("[kernel] scheduler: Initialized kernel task (ID: 0).");
 }
@@ -172,6 +182,7 @@ pub fn kill_all() {
         RUN_QUEUE.lock().retain(|task_id| *task_id == 0);
         if current_id != 0 {
             *CURRENT_TASK_ID.lock() = 0;
+            publish_current_task_for_irq(0, TaskControlBlock::DEFAULT_TIMESLICE_TICKS, 0);
         }
     });
 }
@@ -212,12 +223,24 @@ fn release_task_resources(task: &TaskControlBlock) {
         PageAllocator::deallocate_page(kernel_stack);
     }
 
-    if let Some(user_stack) = task.user_stack_base {
-        PageAllocator::deallocate_page(user_stack);
+    if task.address_space_owned_frames.is_empty() {
+        if let Some(user_stack) = task.user_stack_base {
+            PageAllocator::deallocate_page(user_stack);
+        }
+
+        for page in &task.address_space_pages {
+            PageAllocator::deallocate_page(*page);
+        }
+        return;
     }
 
-    for page in &task.address_space_pages {
-        PageAllocator::deallocate_page(*page);
+    let mut allocator = GlobalFrameAllocator;
+    for frame_addr in &task.address_space_owned_frames {
+        unsafe {
+            allocator.deallocate_frame(PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(
+                frame_addr.as_u64(),
+            )));
+        }
     }
 }
 
@@ -260,76 +283,111 @@ pub fn unblock_task(task_id: u64) {
     });
 }
 
-/// Simulates a context switch to the next ready task (round-robin).
+/// Dispatches the next ready task with a round-robin policy.
 pub fn schedule() {
     interrupts::without_interrupts(|| {
-        let mut run_queue = RUN_QUEUE.lock();
-        let mut current_id_guard = CURRENT_TASK_ID.lock();
-        let mut tasks = TASKS.lock();
+        let pending_switch = {
+            let mut run_queue = RUN_QUEUE.lock();
+            let mut current_id_guard = CURRENT_TASK_ID.lock();
+            let mut tasks = TASKS.lock();
 
-        let old_task_id = *current_id_guard;
+            let old_task_id = *current_id_guard;
+            flush_irq_accounting_for_task(&mut tasks, old_task_id);
 
-        // If the old task is still running, set its state to Ready and put it back in the queue.
-        // (Unless it explicitly blocked itself)
-        if let Some(old_task) = tasks.get_mut(&old_task_id) {
-            if old_task.state == TaskState::Running {
-                old_task.state = TaskState::Ready;
-                run_queue.push_back(old_task_id);
+            // If the old task is still running, set its state to Ready and put it back in the queue.
+            // (Unless it explicitly blocked itself.)
+            if let Some(old_task) = tasks.get_mut(&old_task_id) {
+                if old_task.state == TaskState::Running {
+                    old_task.state = TaskState::Ready;
+                    run_queue.push_back(old_task_id);
+                }
             }
-        }
 
-        // Get the next task from the run queue.
-        while let Some(next_task_id) = run_queue.pop_front() {
-            if let Some(next_task) = tasks.get_mut(&next_task_id) {
+            let mut pending_switch = None;
+
+            // Get the next task from the run queue.
+            while let Some(next_task_id) = run_queue.pop_front() {
+                let Some(next_task) = tasks.get_mut(&next_task_id) else {
+                    kprintln!(
+                        "[kernel] scheduler: ERROR: Next task ID {} not found in TASKS. Skipping.",
+                        next_task_id
+                    );
+                    continue;
+                };
+
                 next_task.state = TaskState::Running;
                 next_task.consumed_ticks = 0;
                 next_task.switch_count = next_task.switch_count.saturating_add(1);
-                *current_id_guard = next_task_id;
-                let next_context = next_task.context;
+                let next_context = &next_task.context as *const Context;
                 let next_address_space = next_task.address_space_root;
+                let next_timeslice_ticks = next_task.timeslice_ticks;
+                *current_id_guard = next_task_id;
+                publish_current_task_for_irq(next_task_id, next_timeslice_ticks, 0);
+
                 kprintln!(
                     "[kernel] scheduler: Context switch: from {} to {}.",
                     old_task_id,
                     next_task_id
                 );
-                restore_task_context(next_context, next_address_space);
-                return;
+
+                if old_task_id == next_task_id {
+                    // Round-robin selected the current task again. Its state/accounting
+                    // have been refreshed, but no CPU context transfer is necessary.
+                    return;
+                }
+
+                if let Some(old_task) = tasks.get_mut(&old_task_id) {
+                    pending_switch = Some(PendingContextSwitch {
+                        old_task_id,
+                        next_task_id,
+                        old_context: &mut old_task.context as *mut Context,
+                        next_context,
+                        next_address_space,
+                    });
+                } else {
+                    kprintln!(
+                        "[kernel] scheduler: No saved context for previous task {}; low-level switch deferred.",
+                        old_task_id
+                    );
+                }
+
+                break;
             }
 
-            kprintln!(
-                "[kernel] scheduler: ERROR: Next task ID {} not found in TASKS. Skipping.",
-                next_task_id
-            );
-        }
+            if pending_switch.is_none() && *current_id_guard == old_task_id {
+                // No task was runnable; keep current task active as idle fallback.
+                if let Some(old_task) = tasks.get_mut(&old_task_id) {
+                    old_task.state = TaskState::Running;
+                }
+                kprintln!(
+                    "[kernel] scheduler: Run queue empty. Continuing task {}.",
+                    old_task_id
+                );
+            }
 
-        // No task was runnable; keep current task active as idle fallback.
-        if let Some(old_task) = tasks.get_mut(&old_task_id) {
-            old_task.state = TaskState::Running;
+            pending_switch
+        };
+
+        if let Some(pending_switch) = pending_switch {
+            // All scheduler locks were dropped with the block above. Interrupts remain
+            // disabled for the CPU-local handoff so the raw task-context pointers cannot
+            // be invalidated by scheduler mutation before the assembly runs.
+            unsafe { dispatch_context_switch(pending_switch) };
         }
-        *current_id_guard = old_task_id;
-        kprintln!("[kernel] scheduler: Run queue empty. Continuing task {}.", old_task_id);
     });
 }
 
 /// Accounts one timer tick to the currently running task and requests a
 /// reschedule when its round-robin quantum is exhausted.
 pub fn on_timer_tick() {
-    interrupts::without_interrupts(|| {
-        let current_id = *CURRENT_TASK_ID.lock();
-        let mut tasks = TASKS.lock();
-        let Some(current_task) = tasks.get_mut(&current_id) else {
-            return;
-        };
+    let consumed_ticks = CURRENT_CONSUMED_TICKS_IRQ
+        .fetch_add(1, Ordering::AcqRel)
+        .saturating_add(1);
+    let timeslice_ticks = CURRENT_TIMESLICE_TICKS_IRQ.load(Ordering::Acquire).max(1);
 
-        if current_task.state != TaskState::Running {
-            return;
-        }
-
-        current_task.consumed_ticks = current_task.consumed_ticks.saturating_add(1);
-        if current_task.consumed_ticks >= current_task.timeslice_ticks.max(1) {
-            request_reschedule_from_irq();
-        }
-    });
+    if consumed_ticks >= timeslice_ticks {
+        request_reschedule_from_irq();
+    }
 }
 
 /// Saves a hardware trap-frame snapshot into the currently running task.
@@ -348,16 +406,19 @@ pub fn get_task_context(task_id: u64) -> Option<Context> {
 /// Returns `(timeslice_ticks, consumed_ticks, switch_count)` for a task.
 pub fn get_task_accounting(task_id: u64) -> Option<(u64, u64, u64)> {
     TASKS.lock().get(&task_id).map(|task| {
-        (task.timeslice_ticks, task.consumed_ticks, task.switch_count)
+        let consumed_ticks = if CURRENT_TASK_ID_IRQ.load(Ordering::Acquire) == task_id {
+            CURRENT_CONSUMED_TICKS_IRQ.load(Ordering::Acquire)
+        } else {
+            task.consumed_ticks
+        };
+        (task.timeslice_ticks, consumed_ticks, task.switch_count)
     })
 }
 
-
 /// Returns the ID of the currently executing task.
 pub fn get_current_task_id() -> u64 {
-    *CURRENT_TASK_ID.lock()
+    CURRENT_TASK_ID_IRQ.load(Ordering::Acquire)
 }
-
 
 /// Returns the total number of registered tasks.
 pub fn task_count() -> usize {
@@ -388,7 +449,11 @@ pub fn available_cpu_cores() -> u32 {
     #[cfg(target_arch = "x86_64")]
     {
         let logical_cores = unsafe { core::arch::x86_64::__cpuid(1) }.ebx >> 16 & 0xff;
-        if logical_cores == 0 { 1 } else { logical_cores }
+        if logical_cores == 0 {
+            1
+        } else {
+            logical_cores
+        }
     }
 
     #[cfg(not(target_arch = "x86_64"))]
@@ -457,21 +522,136 @@ pub fn inherit_capabilities(from_task_id: u64, to_task_id: u64) -> bool {
     false
 }
 
-fn restore_task_context(context: Context, address_space_root: u64) {
-    // CR3 reload / low-level register restore lives in architecture assembly glue.
-    // For now we expose deterministic observability for scheduler decisions.
+fn publish_current_task_for_irq(task_id: u64, timeslice_ticks: u64, consumed_ticks: u64) {
+    CURRENT_TASK_ID_IRQ.store(task_id, Ordering::Release);
+    CURRENT_TIMESLICE_TICKS_IRQ.store(timeslice_ticks.max(1), Ordering::Release);
+    CURRENT_CONSUMED_TICKS_IRQ.store(consumed_ticks, Ordering::Release);
+}
+
+fn flush_irq_accounting_for_task(tasks: &mut BTreeMap<u64, TaskControlBlock>, task_id: u64) {
+    if CURRENT_TASK_ID_IRQ.load(Ordering::Acquire) != task_id {
+        return;
+    }
+
+    if let Some(task) = tasks.get_mut(&task_id) {
+        task.consumed_ticks = CURRENT_CONSUMED_TICKS_IRQ.load(Ordering::Acquire);
+    }
+}
+
+/// Attempts to complete a timer-driven dispatch at IRQ exit.
+///
+/// This function is safe for the IRQ handler to call because it never spins on
+/// scheduler locks: if any lock is currently held, the reschedule request stays
+/// pending for the normal deferred scheduler path. A successful dispatch saves
+/// the interrupted task's trap frame, selects the next ready task, and patches
+/// the outgoing frame so `iretq` resumes the selected task.
+pub fn try_dispatch_from_irq_exit(stack_frame: &mut InterruptStackFrame) -> bool {
+    if !RESCHEDULE_REQUESTED.load(Ordering::Acquire) {
+        return false;
+    }
+
+    let Some(mut run_queue) = RUN_QUEUE.try_lock() else {
+        return false;
+    };
+    let Some(mut current_id_guard) = CURRENT_TASK_ID.try_lock() else {
+        return false;
+    };
+    let Some(mut tasks) = TASKS.try_lock() else {
+        return false;
+    };
+
+    if !RESCHEDULE_REQUESTED.swap(false, Ordering::AcqRel) {
+        return false;
+    }
+
+    let old_task_id = *current_id_guard;
+    let old_snapshot = crate::timer::context_from_interrupt_stack_frame(stack_frame);
+    if let Some(old_task) = tasks.get_mut(&old_task_id) {
+        old_task.context.rip = old_snapshot.rip;
+        old_task.context.rsp = old_snapshot.rsp;
+        old_task.context.rflags = old_snapshot.rflags;
+        old_task.consumed_ticks = CURRENT_CONSUMED_TICKS_IRQ.load(Ordering::Acquire);
+
+        if old_task.state == TaskState::Running {
+            old_task.state = TaskState::Ready;
+            run_queue.push_back(old_task_id);
+        }
+    }
+
+    while let Some(next_task_id) = run_queue.pop_front() {
+        let Some(next_task) = tasks.get_mut(&next_task_id) else {
+            continue;
+        };
+
+        next_task.state = TaskState::Running;
+        next_task.consumed_ticks = 0;
+        next_task.switch_count = next_task.switch_count.saturating_add(1);
+        let next_context = next_task.context;
+        let next_address_space = next_task.address_space_root;
+        let next_timeslice_ticks = next_task.timeslice_ticks;
+        *current_id_guard = next_task_id;
+        publish_current_task_for_irq(next_task_id, next_timeslice_ticks, 0);
+
+        if old_task_id == next_task_id {
+            return false;
+        }
+
+        crate::arch::x86_64::paging::switch_to_address_space(next_address_space);
+        unsafe { crate::timer::restore_interrupt_stack_frame(stack_frame, &next_context) };
+        return true;
+    }
+
+    if let Some(old_task) = tasks.get_mut(&old_task_id) {
+        old_task.state = TaskState::Running;
+        publish_current_task_for_irq(
+            old_task_id,
+            old_task.timeslice_ticks,
+            old_task.consumed_ticks,
+        );
+    }
+
+    false
+}
+
+struct PendingContextSwitch {
+    old_task_id: u64,
+    next_task_id: u64,
+    old_context: *mut Context,
+    next_context: *const Context,
+    next_address_space: u64,
+}
+
+unsafe fn dispatch_context_switch(pending: PendingContextSwitch) {
+    // SAFETY: `schedule` creates both pointers from entries in the global task
+    // table while interrupts are disabled, drops scheduler locks before this
+    // function runs, and keeps interrupts disabled until the assembly handoff has
+    // consumed the snapshots.
+    let old_context = unsafe { &mut *pending.old_context };
+    let next_context = unsafe { &*pending.next_context };
+
     kprintln!(
         "[kernel] scheduler: restore rip={:#x}, rsp={:#x}, rflags={:#x}, as_root={:#x}.",
-        context.rip,
-        context.rsp,
-        context.rflags,
-        address_space_root
+        next_context.rip,
+        next_context.rsp,
+        next_context.rflags,
+        pending.next_address_space
     );
+    kprintln!(
+        "[kernel] scheduler: low-level switch: from {} to {}.",
+        pending.old_task_id,
+        pending.next_task_id
+    );
+
+    crate::arch::x86_64::paging::switch_to_address_space(pending.next_address_space);
+
+    // SAFETY: The scheduler selected distinct old/new task contexts and released
+    // its locks before dispatching into the architecture switch primitive.
+    unsafe { context_switch::switch(old_context, next_context) };
 }
 
 /// Returns a cloned `TaskControlBlock` for the currently executing task.
 pub fn get_current_task_tcb() -> TaskControlBlock {
-    let current_id = *CURRENT_TASK_ID.lock();
+    let current_id = CURRENT_TASK_ID_IRQ.load(Ordering::Acquire);
     TASKS.lock().get(&current_id).cloned().unwrap_or_else(|| {
         // Fallback for when current_id might not be in TASKS (e.g., during early boot)
         kprintln!(
@@ -491,6 +671,8 @@ pub fn reset_for_tests() {
     TASKS.lock().clear();
     RUN_QUEUE.lock().clear();
     *CURRENT_TASK_ID.lock() = 0;
+    publish_current_task_for_irq(0, TaskControlBlock::DEFAULT_TIMESLICE_TICKS, 0);
+    RESCHEDULE_REQUESTED.store(false, Ordering::Release);
 }
 
 #[cfg(test)]
