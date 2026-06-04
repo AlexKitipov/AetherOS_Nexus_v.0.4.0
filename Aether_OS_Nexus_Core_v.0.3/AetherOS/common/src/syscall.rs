@@ -1,4 +1,3 @@
-
 /// System call numbers.
 pub const SYS_LOG: u64 = 0;
 pub const SYS_IPC_SEND: u64 = 1;
@@ -21,7 +20,6 @@ pub const SYS_AI_CALL: u64 = 17;
 pub const SYS_VFS_CALL: u64 = 18;
 pub const SYS_UDP_SEND: u64 = 19;
 pub const SYS_UDP_RECV: u64 = 20;
-
 
 /// Syscall ABI version used by user-space V-Nodes and the kernel dispatcher.
 ///
@@ -74,7 +72,6 @@ impl UserBuf {
         }
     }
 }
-
 
 /// Performs a system call with no arguments.
 #[must_use]
@@ -151,7 +148,6 @@ pub fn syscall4(syscall_num: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) ->
     }
     ret
 }
-
 
 /// Performs a system call with five arguments.
 ///
@@ -277,10 +273,14 @@ pub fn syscall_vfs_call(service_channel: u64, payload: &[u8]) -> u64 {
     )
 }
 
-
 #[must_use]
 #[inline(always)]
-pub fn syscall_udp_send(local_port: u16, remote_ip: [u8; 4], remote_port: u16, payload: &[u8]) -> u64 {
+pub fn syscall_udp_send(
+    local_port: u16,
+    remote_ip: [u8; 4],
+    remote_port: u16,
+    payload: &[u8],
+) -> u64 {
     syscall6(
         SYS_UDP_SEND,
         local_port as u64,
@@ -302,4 +302,48 @@ pub fn syscall_udp_recv(local_port: u16, out: &mut [u8]) -> u64 {
         out.len() as u64,
         0,
     )
+}
+
+#[cfg(test)]
+mod abi_contract_tests {
+    use super::*;
+
+    #[test]
+    fn abi_v2_constants_remain_canonical() {
+        assert_eq!(SYSCALL_ABI_VERSION, 2);
+        assert_eq!(SYSCALL_ABI_MAX_ARGS, 6);
+        assert_eq!(core::mem::size_of::<UserBuf>(), 16);
+        assert_eq!(core::mem::align_of::<UserBuf>(), 8);
+    }
+
+    #[test]
+    fn syscall_numbers_remain_contiguous_for_abi_v2() {
+        let numbers = [
+            SYS_LOG,
+            SYS_IPC_SEND,
+            SYS_IPC_RECV,
+            SYS_BLOCK_ON_CHAN,
+            SYS_TIME,
+            SYS_IRQ_REGISTER,
+            SYS_NET_RX_POLL,
+            SYS_NET_ALLOC_BUF,
+            SYS_NET_FREE_BUF,
+            SYS_NET_TX,
+            SYS_IRQ_ACK,
+            SYS_GET_DMA_BUF_PTR,
+            SYS_SET_DMA_BUF_LEN,
+            SYS_IPC_RECV_NONBLOCKING,
+            SYS_CAP_GRANT,
+            SYS_UI_CALL,
+            SYS_SWARM_CALL,
+            SYS_AI_CALL,
+            SYS_VFS_CALL,
+            SYS_UDP_SEND,
+            SYS_UDP_RECV,
+        ];
+
+        for (expected, actual) in numbers.iter().enumerate() {
+            assert_eq!(*actual, expected as u64);
+        }
+    }
 }
