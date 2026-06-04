@@ -72,6 +72,10 @@ pub struct UserBuf {
 
 The `UserBuf` layout is exactly two `u64` fields (`ptr`, then `len`). Kernel code must validate user pointers, lengths, capabilities, and channel permissions before dereferencing or acting on user-provided data. Kernel-side copy helpers are responsible for rejecting invalid ranges; callers must not assume user memory remains stable after validation.
 
+## IPC Compatibility Notes
+
+ABI v2 IPC syscalls remain pointer/length based. `SYS_IPC_SEND` copies sender bytes into an inline mailbox message, while `SYS_IPC_RECV` and `SYS_IPC_RECV_NONBLOCKING` copy inline payload bytes back to the receiver. Shared IPC descriptors in `common/src/ipc/types.rs` are documentation and future-extension helpers only; ABI v2 callers must not pass them as replacements for the existing `ptr,len` arguments. See `docs/IPC.md` for current IPC semantics and the zero-copy roadmap.
+
 ## Return Codes
 
 Common return-code constants are part of the ABI contract:
