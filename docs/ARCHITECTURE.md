@@ -36,7 +36,7 @@ At a high level:
 - Capabilities describe which actions or channels a V-Node may use.
 - Kernel-side checks are expected to reject operations without the required capability.
 
-The long-term goal is for V-Nodes to become immutable, content-addressed, cryptographically verifiable bundles with reproducible manifests and stable capability hashes. That is not yet complete and is tracked as roadmap language in [`docs/ROADMAP.md`](ROADMAP.md) until implemented and tested.
+V-Node manifests now have a versioned canonical byte schema for hashing descriptor and capability state; see [`docs/VNODE-MANIFEST.md`](VNODE-MANIFEST.md). Full immutable, content-addressed, cryptographically verifiable bundles remain future work until signature checks and admission enforcement are reviewed and tested.
 
 ## IPC and Networking Status
 

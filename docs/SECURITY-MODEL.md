@@ -73,7 +73,8 @@ Known limitations:
 Do not present the following goals as implemented security guarantees until code, tests, and maintainer review support them:
 
 - Immutable, content-addressed, cryptographically signed V-Node bundles.
-- Reproducible least-privilege V-Node manifests with stable capability hashes.
+- Admission checks that enforce the stable V-Node manifest schema and reject unsigned or mismatched bundles.
+- Broader conformance tests for least-privilege V-Node manifests beyond the current deterministic capability-hash coverage.
 - Formally verified or production-certified capability isolation.
 - Production zero-copy IPC with validated ownership transfer.
 - Complete end-to-end zero-copy networking from NIC to application.

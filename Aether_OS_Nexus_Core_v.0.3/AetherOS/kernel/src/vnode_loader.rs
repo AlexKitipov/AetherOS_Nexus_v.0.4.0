@@ -2,13 +2,13 @@
 
 extern crate alloc;
 
+use aetheros_common::vnode_manifest::{capability_tag, fs_rights_tag, VNodeManifestEncoder};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use x86_64::VirtAddr;
-// use postcard::to_allocvec;
 use sha2::{Digest, Sha256};
 use spin::Mutex;
+use x86_64::VirtAddr;
 
 use crate::aetherfs::{self, FsCapability, FsRights, Hash};
 use crate::caps::Capability;
@@ -50,13 +50,12 @@ pub struct VNode {
 struct ManagedVNode {
     id: VNodeId,
     image_hash: Hash,
-    capabilities: Vec<Capability>,
+    manifest_hash: [u8; 32],
 }
 
 impl ManagedVNode {
     fn capability_hash(&self) -> [u8; 32] {
-        let encoded = Vec::new(); // TODO: serialize capabilities
-        sha2_256(&encoded)
+        self.manifest_hash
     }
 }
 
@@ -100,7 +99,7 @@ pub fn spawn_vnode_task(
     image: &[u8],
     capabilities: Vec<Capability>,
 ) -> Result<(), String> {
-    let managed_capabilities = capabilities.clone();
+    let manifest_hash = hash_vnode_manifest(vnode, &capabilities);
     let entry_point = VirtAddr::new(vnode.entry);
     let segment_images = materialize_load_segments(image, &vnode.load_segments)?;
     let user_segments: Vec<UserSegment> = segment_images
@@ -141,7 +140,7 @@ pub fn spawn_vnode_task(
     VNODE_MANAGER.lock().push(ManagedVNode {
         id: vnode.id,
         image_hash: vnode.image_hash,
-        capabilities: managed_capabilities,
+        manifest_hash,
     });
 
     Ok(())
@@ -179,7 +178,10 @@ pub fn load_vnode(vnode_name: &str, capabilities: Vec<Capability>) -> Result<(),
 
     spawn_vnode_task(&vnode, &image, capabilities)?;
 
-    kprintln!("[kernel] vnode_loader: V-Node '{}' loaded from immutable storage.", vnode_name);
+    kprintln!(
+        "[kernel] vnode_loader: V-Node '{}' loaded from immutable storage.",
+        vnode_name
+    );
     Ok(())
 }
 
@@ -197,8 +199,12 @@ pub fn snapshot_vnode_states() -> Vec<crate::snapshot_engine::VNodeState> {
 
 pub fn spawn_from_snapshot(vnode: &crate::snapshot_engine::VNodeState) -> Result<(), String> {
     let image_hash = Hash(vnode.image_hash);
-    let image = aetherfs::fs_read(image_hash)
-        .ok_or_else(|| format!("V-Node image hash {:02x?} is not readable", vnode.image_hash))?;
+    let image = aetherfs::fs_read(image_hash).ok_or_else(|| {
+        format!(
+            "V-Node image hash {:02x?} is not readable",
+            vnode.image_hash
+        )
+    })?;
     let elf_header = elf::ElfLoader::parse_elf_bytes(&image)?;
 
     let current = aetherfs::current_snapshot()
@@ -260,6 +266,59 @@ fn materialize_load_segments(
             })
         })
         .collect()
+}
+
+fn hash_vnode_manifest(vnode: &VNode, capabilities: &[Capability]) -> [u8; 32] {
+    let encoded = encode_vnode_manifest(vnode, capabilities);
+    sha2_256(&encoded)
+}
+
+fn encode_vnode_manifest(vnode: &VNode, capabilities: &[Capability]) -> Vec<u8> {
+    let mut encoder = VNodeManifestEncoder::new()
+        .vnode_identity(vnode.id, &vnode.name, &vnode.image_hash.0, vnode.entry)
+        .permissions(
+            vnode.permissions.can_syscall,
+            vnode.permissions.can_ipc,
+            vnode.permissions.can_io,
+        )
+        .fs_capability(
+            &vnode.fs_capability.root.0,
+            fs_rights_manifest_tag(vnode.fs_capability.rights),
+        )
+        .capability_count(capabilities.len() as u32);
+
+    for capability in capabilities {
+        let (tag, parameter) = capability_manifest_record(*capability);
+        encoder = encoder.capability(tag, parameter);
+    }
+
+    encoder.finish()
+}
+
+fn fs_rights_manifest_tag(rights: FsRights) -> u8 {
+    match rights {
+        FsRights::ReadOnly => fs_rights_tag::READ_ONLY,
+        FsRights::ReadWrite => fs_rights_tag::READ_WRITE,
+    }
+}
+
+fn capability_manifest_record(capability: Capability) -> (u16, u64) {
+    match capability {
+        Capability::LogWrite => (capability_tag::LOG_WRITE, 0),
+        Capability::TimeRead => (capability_tag::TIME_READ, 0),
+        Capability::NetworkAccess => (capability_tag::NETWORK_ACCESS, 0),
+        Capability::StorageAccess => (capability_tag::STORAGE_ACCESS, 0),
+        Capability::IrqRegister(irq) => (capability_tag::IRQ_REGISTER, irq as u64),
+        Capability::DmaAlloc => (capability_tag::DMA_ALLOC, 0),
+        Capability::DmaAccess => (capability_tag::DMA_ACCESS, 0),
+        Capability::IrqAck(irq) => (capability_tag::IRQ_ACK, irq as u64),
+        Capability::IpcManage => (capability_tag::IPC_MANAGE, 0),
+        Capability::ReadMetrics => (capability_tag::READ_METRICS, 0),
+        Capability::WriteLogs => (capability_tag::WRITE_LOGS, 0),
+        Capability::RestartVNode => (capability_tag::RESTART_VNODE, 0),
+        Capability::SyncSnapshots => (capability_tag::SYNC_SNAPSHOTS, 0),
+        Capability::ReadOwnMetrics => (capability_tag::READ_OWN_METRICS, 0),
+    }
 }
 
 fn sha2_256(bytes: &[u8]) -> [u8; 32] {
