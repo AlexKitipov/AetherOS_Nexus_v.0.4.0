@@ -20,7 +20,7 @@ The Rust kernel and its `common`/`vnode` crates are the source of truth for OS b
 ```text
 .
 ├── Cargo.toml                         # Root Rust workspace wrapper for the v0.3 OS core
-├── rust-toolchain.toml                 # Unified Rust toolchain for root-level Cargo commands
+├── rust-toolchain.toml                 # Pins the unified nightly-2025-03-01 Rust toolchain
 ├── Aether_OS_Nexus_Core_v.0.3/
 │   └── AetherOS/
 │       ├── Cargo.toml                  # Original Rust workspace manifest
@@ -38,6 +38,8 @@ The Rust kernel and its `common`/`vnode` crates are the source of truth for OS b
 ```
 
 ## Building from the Repository Root
+
+Root and core Rust toolchain files are pinned to `nightly-2025-03-01`, matching `Aether_OS_Nexus_Core_v.0.3/AetherOS/rust-toolchain.toml`. The vendored bootloader keeps its own toolchain and should only be changed in a reviewed bootloader-specific update.
 
 The safest root-level Rust check builds the shared `common` crate:
 
@@ -79,6 +81,7 @@ npm run check
 
 ## Architecture Documentation
 
+- `docs/BUILDING.md` documents the unified Rust toolchain and root/core build commands.
 - `docs/ARCHITECTURE.md` describes the current split architecture, root support-directory boundaries, and roadmap boundaries.
 - `docs/SYSCALL-ABI.md` documents the current syscall ABI version and stabilization expectations.
 - `docs/PR-ROADMAP.md` turns the repository audit into a staged PR plan.
