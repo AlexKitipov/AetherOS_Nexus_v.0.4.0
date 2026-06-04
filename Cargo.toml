@@ -1,3 +1,6 @@
+# Root workspace wrapper for the authoritative Rust v0.3 core.
+# Keep the live kernel/common/vnode crates in Aether_OS_Nexus_Core_v.0.3/AetherOS/
+# until a reviewed migration explicitly moves them.
 [workspace]
 resolver = "2"
 default-members = ["Aether_OS_Nexus_Core_v.0.3/AetherOS/common"]

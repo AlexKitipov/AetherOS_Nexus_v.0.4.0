@@ -16,6 +16,10 @@ Important components:
 
 The Rust core is the source of truth for implemented OS behavior. Root-level manifests and documents should point back to this implementation rather than describing an unrelated architecture.
 
+## Root-Level Support Directories
+
+The root-level `kernel/src/syscall/` directory is contract/documentation support for ABI review. It is not the live kernel implementation, should not be treated as a replacement for `Aether_OS_Nexus_Core_v.0.3/AetherOS/kernel/`, and should remain aligned with the canonical Rust core syscall definitions.
+
 ## TypeScript/React v0.4 Shell
 
 The root TypeScript project (`client/`, `server/`, `shared/`, and related config files) is an optional UI/development shell. It can be useful for prototyping concepts such as desktop interactions, system visualization, and developer workflows, but it is not currently a bootable OS layer and does not replace the Rust kernel.
