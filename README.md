@@ -10,8 +10,8 @@ The Rust kernel and its `common`/`vnode` crates are the source of truth for OS b
 ## Current Repository Status
 
 - The functional Rust workspace lives in `Aether_OS_Nexus_Core_v.0.3/AetherOS/`.
-- The root `Cargo.toml` mirrors that Rust workspace so basic Cargo commands can be run from the repository root.
-- Root-level `kernel/` currently contains ABI contract notes only and is not the authoritative kernel implementation.
+- The root `Cargo.toml` is a wrapper over that Rust workspace so basic Cargo commands can be run from the repository root without moving the core crates.
+- Root-level `kernel/` currently contains ABI contract/documentation support only and is not the authoritative kernel implementation.
 - Root-level TypeScript code is an optional Nexus UI/server prototype.
 - Claims such as fully immutable V-Nodes, production zero-copy IPC, and complete zero-copy networking are roadmap goals unless specifically implemented in the Rust core.
 
@@ -79,7 +79,7 @@ npm run check
 
 ## Architecture Documentation
 
-- `docs/ARCHITECTURE.md` describes the current split architecture and roadmap boundaries.
+- `docs/ARCHITECTURE.md` describes the current split architecture, root support-directory boundaries, and roadmap boundaries.
 - `docs/SYSCALL-ABI.md` documents the current syscall ABI version and stabilization expectations.
 - `docs/PR-ROADMAP.md` turns the repository audit into a staged PR plan.
 
