@@ -1,270 +1,89 @@
 # Aether_OS_Nexus_Core_v0.3.0
-AetherOS Nexus is a Rust-first experimental operating-system architecture exploring a Nexus hybrid microkernel, capability security, and immutable V-Nodes.
 
-# 🌌 AetherOS Alpha — The Nexus Architecture
+This directory contains the historical v0.3 Rust-first AetherOS Nexus core. In the combined v0.4 repository, the canonical status summary is the root [`README.md`](../README.md), and architecture boundaries are documented in [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 
-_Join the Aether. Build the Nexus._
+Use this README as a navigation and build note for the v0.3 core directory. Avoid treating older aspirational language as an implemented guarantee unless it is backed by code in `AetherOS/` and current architecture docs.
 
-## 🚀 Project Vision & Mission
+## Current Status
 
-AetherOS is not just another operating system; it's a **Nexus Hybrid** – a new class of operating system designed from the ground up to redefine security, performance, and transparency in computing. Our mission is to build a platform that is robust, user-centric, and resilient in an increasingly complex digital world, empowering developers and users with unprecedented control and insight.
+- The active Rust workspace lives in [`AetherOS/`](AetherOS/).
+- The Rust kernel implementation lives in `AetherOS/kernel/`.
+- Shared `no_std` APIs, syscall constants, ABI wrappers, and IPC helpers live in `AetherOS/common/`.
+- V-Node/service experiments live in `AetherOS/vnode/` and related workspace crates.
+- The repository-root TypeScript/React UI shell is separate from this Rust core and is described in the root [`README.md`](../README.md).
 
-Traditional operating systems are prisoners of their history:
+## Implemented vs. Roadmap Language
 
-*   **Windows** is a monolithic labyrinth of legacy code, constantly battling security vulnerabilities and resource inefficiency.
-*   **Linux** is powerful but fragmented, often requiring deep technical expertise for optimal configuration.
-*   **macOS** offers a polished experience but confines users to a closed ecosystem, limiting freedom and transparency.
+AetherOS is an experimental operating-system architecture exploring a Nexus hybrid microkernel, capability security, V-Nodes, efficient IPC, and network service isolation. Some older descriptions used stronger language such as "alpha complete," "fully immutable V-Nodes," "production zero-copy IPC," "complete zero-copy networking," or "AI-assisted driver translation."
 
-None of them are built for a world where drivers are sandboxed by default, inter-process communication (IPC) is visually inspectable, and applications are immutable, cryptographically verifiable entities. AetherOS aims to be that paradigm shift.
+Those claims should now be read as roadmap or future-goal language unless the current Rust core implements and tests the specific behavior. See [`docs/ROADMAP.md`](../docs/ROADMAP.md) for consolidated future goals.
 
-## 🧬 Core Architectural Pillars (Alpha Complete)
-
-AetherOS is founded on revolutionary principles that leverage modern systems programming and cryptographic guarantees, demonstrated across several stages:
-
-1.  **Memory Safety by Default**: The entire Nexus Core is written in **Rust**, eliminating 70% of classic kernel vulnerabilities.
-2.  **Nexus Hybrid Microkernel**: A minimal, capability-secured microkernel manages only memory, CPU scheduling, and IPC.
-3.  **Capability-Based Security**: No `root` user. Every V-Node possesses only explicitly granted rights.
-4.  **Zero-Copy IPC**: IPC is designed for lightning speed using shared memory with transfer-of-ownership semantics.
-5.  **Zero-Trust Runtime**: No component is inherently trusted; every operation is validated.
-6.  **Immutable Infrastructure (V-Nodes)**: Applications as cryptographically signed, content-addressed, immutable bundles.
-7.  **Zero-Copy Networking**: Data moves from NIC to application without CPU-intensive copying.
-8.  **Visual Observability**: Real-time, interactive visualization of IPC flows, V-Node states, and resource usage.
-9.  **Aether Driver Intelligence (ADI)**: AI-assisted system to translate existing drivers into safe, sandboxed V-Nodes.
-10. **Decentralized Trust Model**: Cryptographic trust with Merkle Trees and Content-Addressable Storage.
-11. **Resource Quotas & Admission Control**: Every V-Node declares its resource needs, enforced by the Nexus Core.
-
-## 📁 Project Structure
+## Local Project Structure
 
 ```text
-aetheros/
-├─ Cargo.toml                  # Workspace root
-├─ kernel/                     # The Nexus Core (operating system kernel)
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ arch/x86_64/         # x86_64 architecture-specific code (boot, GDT, IDT, paging, DMA, IRQ)
-│  │  ├─ drivers/             # Device drivers (e.g., serial)
-│  │  ├─ memory/              # Memory management (frame allocator, page allocator)
-│  │  ├─ task/                # Task management (TCB, scheduler)
-│  │  ├─ ipc/                 # Inter-Process Communication (mailbox)
-│  │  ├─ console.rs           # Kernel console output
-│  │  ├─ timer.rs             # Kernel timer
-│  │  ├─ caps.rs              # Capability definitions
-│  │  ├─ syscall.rs           # Syscall dispatcher
-│  │  ├─ lib.rs               # Kernel library entry point, module declarations
-│  │  ├─ main.rs              # Kernel main entry point (_start, panic_handler)
-│  │  ├─ aetherfs.rs          # AetherFS conceptual implementation
-│  │  ├─ elf.rs               # ELF loader conceptual implementation
-│  │  └─ vnode_loader.rs      # V-Node loader conceptual implementation
-│  └─ linker.ld
-├─ common/                     # Common utilities and IPC message definitions for kernel and V-Nodes
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ ipc/                  # IPC messaging definitions
-│  │  ├─ syscall.rs            # User-space syscall wrappers
-│  │  └─ lib.rs                # Common library entry point
-├─ vnode/                      # Example V-Node applications
-│  ├─ dns-resolver/             # DNS Resolver V-Node
-│  ├─ file-manager/             # File Manager V-Node
-│  ├─ init-service/             # Init Service V-Node
-│  ├─ mail-service/             # Mail Service V-Node
-│  ├─ model-runtime/            # Model Runtime V-Node
-│  ├─ net-bridge/               # Network Bridge Driver V-Node
-│  ├─ net-stack/                # AetherNet Network Stack V-Node
-│  ├─ registry/                 # Package Registry V-Node
-│  ├─ shell/                    # Shell V-Node
-│  ├─ socket-api/               # Socket API V-Node
-│  └─ vfs/                      # Virtual File System V-Node
+Aether_OS_Nexus_Core_v.0.3/
+├─ AetherOS/
+│  ├─ Cargo.toml                  # Original Rust workspace manifest
+│  ├─ kernel/                     # Authoritative Rust kernel implementation
+│  ├─ common/                     # Shared no_std APIs, syscall ABI, IPC helpers
+│  ├─ vnode/                      # V-Node/service crates and experiments
+│  ├─ libnexus-net/               # Network support crate
+│  ├─ tools/image_builder/        # Kernel/image tooling
+│  └─ Nexus/UI/vnode/             # Rust UI-related V-Node experiments
+├─ docs/                          # Historical dependency/environment notes for this core
+└─ README.md
 ```
 
-## 🛠️ Build & Run Guide (bootloader_api 0.11)
+## Build and Run Guidance
 
-This project uses the modern `bootloader_api` flow. Legacy `bootloader` 0.10 / `bootimage` commands are not used.
+For the current unified build model, start with the root [`docs/BUILDING.md`](../docs/BUILDING.md). This core still uses the `bootloader_api` flow; legacy `bootloader` 0.10 / `bootimage` commands are not used.
 
 ### Prerequisites
 
-- Rust nightly
-- `rust-src` and `llvm-tools-preview` components for nightly
-- QEMU (`qemu-system-x86_64`)
+- Rust `nightly-2025-03-01`
+- `rust-src` and `llvm-tools-preview` for the pinned nightly
+- QEMU (`qemu-system-x86_64`) for runtime smoke tests
 
 ```bash
-rustup toolchain install nightly-2024-12-01
-rustup override set nightly-2024-12-01
-rustup component add rust-src
-rustup component add llvm-tools-preview
+rustup toolchain install nightly-2025-03-01
+rustup component add rust-src llvm-tools-preview --toolchain nightly-2025-03-01
 ```
 
+For local dependency details that were captured with the v0.3 core, see [`docs/dependencies.md`](docs/dependencies.md) and [`docs/environment_audit_checklist.md`](docs/environment_audit_checklist.md).
 
-### Dependency setup
-
-For a centralized dependency list and setup instructions, see [`docs/dependencies.md`](docs/dependencies.md).
-
-For a machine-by-machine validation checklist, see [`docs/environment_audit_checklist.md`](docs/environment_audit_checklist.md).
-
-Quick start:
-
-```bash
-pip install -r requirements.txt
-./scripts/check_env.sh
-```
-
-Ubuntu helper (optional):
-
-```bash
-./scripts/install_deps_ubuntu.sh
-```
-
-### Build kernel
-
-From repository root, run:
+### Build the kernel from the core workspace
 
 ```bash
 cd AetherOS
-cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
+cargo +nightly-2025-03-01 build \
+  --release \
+  --target .cargo/aetheros-x86_64.json \
+  -Zbuild-std=core,alloc,compiler_builtins \
+  -Zbuild-std-features=compiler-builtins-mem
 ```
 
-Or use the helper:
+Or use the helper from `AetherOS/`:
 
 ```bash
 ./scripts/build_kernel_image.sh
 ```
 
-### Run in QEMU
-
-```bash
-qemu-system-x86_64 -kernel target/aetheros-x86_64/release/aetheros-kernel
-```
-
 ### Workspace helper flow
 
 ```bash
+cd AetherOS
 ./scripts/build_all.sh
 ./scripts/build_initrd.sh
 ./scripts/run_qemu.sh
 ```
 
-## 🔧 Troubleshooting workspace build errors
+## Troubleshooting
 
-If you are validating user-space V-Node services (such as `registry` and `init-service`), build those packages directly from the workspace root:
+If you are validating user-space V-Node services, build those packages directly from `AetherOS/`:
 
 ```bash
 cd AetherOS
 cargo build -p registry -p init-service
 ```
 
-This avoids mixing kernel/nightly-only targets with host-side service validation and provides faster feedback for IPC/API-level changes.
-
-If you see:
-
-```text
-error: unknown `-Z` flag specified: json-target-spec
-```
-
-you are likely using stale build instructions, outside `AetherOS/`, on an unpinned nightly, or mixing toolchains so `cargo`
-and `rustc` resolve to different nightlies. This workspace pins `nightly-2024-12-01`; use `./scripts/build_kernel_image.sh`
-(from `AetherOS/`) or the full command above (without `-Zjson-target-spec`).
-
-If you see:
-
-```text
-warning: user-defined alias `bootimage` is shadowing an external subcommand
-error: the argument '--release' cannot be used multiple times
-```
-
-you likely have a global Cargo alias (for example in `~/.cargo/config.toml`) named `bootimage`
-that injects `--release`, while your command also passes `--release`.
-This repository intentionally does **not** define a `bootimage` alias.
-
-Recommended fix:
-
-1. Remove or rename the global alias from `~/.cargo/config` or `~/.cargo/config.toml`.
-2. Use the pinned build flow from this repo:
-   - `./scripts/build_kernel_image.sh`
-   - or `cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem`
-
-To inspect active alias configuration:
-
-```bash
-cat ~/.cargo/config
-cat ~/.cargo/config.toml
-```
-
-**Join the Aether. Build the Nexus.**
-
-
-
-📘 NotebookLM – Centralized Knowledge Hub
-To simplify navigation and improve workflow across all project documentation, we created a dedicated NotebookLM hub that aggregates, structures, and analyzes all key materials related to AetherOS Nexus Core v0.3.
-
-🔗 NotebookLM (documentation, analyses, reports):  
-https://notebooklm.google.com/notebook/be0fd2b7-ed9f-4bbb-9f09-eb93b779d822
-
-What the NotebookLM hub includes:
-Architectural descriptions of AetherOS Nexus Core
-
-Documentation on security, isolation, and cryptography
-
-Networking mechanisms and AetherNet specifications
-
-Analyses of the V‑Node architecture
-
-Rust safety patterns and system modules
-
-Infographics, diagrams, and visualizations
-
-Automatically generated summaries, tests, and learning materials
-
-Strategic reports and technical breakdowns
-
-NotebookLM serves as a central knowledge hub that streamlines development, review, and expansion of AetherOS.
-
-## ⚠️ Current Limitations: Missing CI/CD and Automated Testing
-
-AetherOS Nexus Core v0.3 is currently in an early **alpha** stage.  
-The project lacks automated quality infrastructure, which introduces significant technical debt.
-
-### Identified gaps:
-- No CI/CD pipelines (GitHub Actions)
-- No unit or integration tests
-- No automated linting or formatting
-- No security policies or contribution guidelines
-- Manual builds dependent on local developer environment
-
-### Why this matters:
-Without automated checks, every code change carries regression risk and makes external contributions difficult.
-
-### Roadmap (2026):
-- Implement GitHub Actions for build, test, lint
-- Create a foundational test suite for the kernel and V‑Nodes
-- Introduce strict code standards (fmt, clippy)
-- Add SECURITY.md and CONTRIBUTING.md
-- Establish a GitHub Project roadmap
-
-## 🎯 v0.4 Integration Priority (First PR)
-
-For the first implementation PR in **v0.4**, prioritize **ABI Synchronization** in the kernel syscall layer.
-
-Why this should come first:
-- `VNodeChannel` IPC transport depends on a stable 64-bit `syscall3` ABI contract.
-- `ui_protocol`, `keyboard_ipc`, `socket_ipc`, and `model_runtime_ipc` all rely on reliable message passing, so ABI compatibility is a blocker for most service integration.
-- Shipping ABI sync first reduces cascading breakage and gives all V-Node services a single validated syscall baseline.
-
-## 🧭 Finalization Plan After v0.3 (Recommended Order)
-
-With the system skeleton now defined end-to-end, the recommended execution sequence is:
-
-1. **API Documentation Freeze (first):**
-   - Generate canonical docs for syscall ABI, IPC message schemas, and V-Node service contracts.
-   - Mark protocol/version boundaries explicitly to avoid integration drift during v0.4 performance work.
-2. **Live ISO Bring-up (second):**
-   - Build a minimal bootable image that includes kernel + init-service + net-bridge + socket-api + dns-resolver.
-   - Validate end-to-end network path in QEMU before adding performance optimizations.
-3. **Performance Iteration (third):**
-   - Introduce DMA ring buffers and protocol dispatch filtering in net-bridge.
-   - Benchmark latency/throughput before and after each optimization step.
-
-This order reduces rework: documentation first stabilizes contracts, while a thin Live ISO then validates real boot/runtime behavior on a fixed interface baseline.
-
-Suggested first PR scope:
-1. Add/verify 64-bit `syscall3` handling in kernel syscall dispatcher.
-2. Validate user/kernel pointer-width and argument marshalling rules.
-3. Add a minimal IPC roundtrip smoke test between two V-Node endpoints using `postcard` payloads.
+If you see `unknown -Z flag specified: json-target-spec`, use the pinned `nightly-2025-03-01` toolchain and the build commands above. If you see a `bootimage` alias conflict, remove or rename the global Cargo alias and avoid legacy `cargo bootimage` instructions for this workspace.

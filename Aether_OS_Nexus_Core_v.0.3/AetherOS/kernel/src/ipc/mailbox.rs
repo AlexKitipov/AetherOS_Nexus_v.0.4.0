@@ -1,10 +1,10 @@
 extern crate alloc;
 
+use aetheros_common::channel::id::ChannelId;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-use aetheros_common::channel::id::ChannelId;
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
 
@@ -14,6 +14,11 @@ const MAX_INLINE_MESSAGE_SIZE: usize = 4096;
 const DEFAULT_MAX_DEPTH: usize = 64;
 const DEFAULT_MAX_INFLIGHT_BYTES: usize = 256 * 1024;
 
+/// Kernel-internal shared payload handle.
+///
+/// This is a low-copy mailbox payload because queued messages clone an `Arc` to
+/// immutable bytes, but it is not production zero-copy IPC: there is no tested
+/// userspace ownership transfer, revocation, or mapping lifetime contract yet.
 #[derive(Clone)]
 pub struct SharedMemoryGrant {
     owner_task_id: u64,
@@ -108,6 +113,10 @@ impl Channel {
         Ok(())
     }
 
+    /// Enqueue an ABI v2-compatible inline IPC message.
+    ///
+    /// The bytes are copied into kernel-owned queue storage. A receiver using
+    /// `recv_message` will copy these bytes back into its userspace buffer.
     pub fn send(&self, sender: u32, message: &[u8]) -> Result<(), &'static str> {
         if message.len() > MAX_INLINE_MESSAGE_SIZE {
             return Err("Inline message too large");
@@ -115,6 +124,11 @@ impl Channel {
         self.enqueue(sender, MessagePayload::Inline(message.to_vec()))
     }
 
+    /// Enqueue a kernel-internal low-copy shared-memory grant.
+    ///
+    /// ABI v2 `SYS_IPC_RECV` callers cannot consume this payload kind; callers
+    /// must use an explicitly reviewed descriptor or future ABI-bumped syscall
+    /// before userspace shared-memory IPC is considered stable.
     pub fn send_shared_memory(
         &self,
         sender: u32,
@@ -170,7 +184,11 @@ impl Mailbox {
         self.create_channel_with_limits(DEFAULT_MAX_DEPTH, DEFAULT_MAX_INFLIGHT_BYTES)
     }
 
-    pub fn create_channel_with_limits(&self, max_depth: usize, max_inflight_bytes: usize) -> ChannelId {
+    pub fn create_channel_with_limits(
+        &self,
+        max_depth: usize,
+        max_inflight_bytes: usize,
+    ) -> ChannelId {
         let mut next_id = self.next_channel_id.lock();
         let new_id = *next_id;
         *next_id += 1;
@@ -213,7 +231,10 @@ pub fn init() {
 }
 
 pub fn create_channel() -> ChannelId {
-    MAILBOX.get().expect("Mailbox not initialized").create_channel()
+    MAILBOX
+        .get()
+        .expect("Mailbox not initialized")
+        .create_channel()
 }
 
 pub fn send(channel_id: ChannelId, sender: u32, message: &[u8]) -> Result<(), &'static str> {
@@ -259,6 +280,11 @@ pub fn register_receiver_waiter(channel_id: ChannelId, task_id: u64) -> Result<(
     Ok(())
 }
 
+/// Copy a userspace inline message into the mailbox.
+///
+/// This helper preserves the ABI v2 pointer/length contract. It intentionally
+/// does not reinterpret user buffers as IPC descriptors, which keeps existing
+/// ABI v2 callers compatible.
 pub fn send_message(
     channel_id: ChannelId,
     message_ptr: *const u8,
@@ -287,6 +313,10 @@ pub fn inject_hardware_event(
     send(channel_id, irq as u32, payload)
 }
 
+/// Receive an ABI v2 inline message into a userspace buffer.
+///
+/// Inline payloads are copied out with `copy_to_user`. Shared-memory payloads
+/// are rejected rather than silently exposed through the inline receive ABI.
 pub fn recv_message(
     channel_id: ChannelId,
     buffer_ptr: *mut u8,

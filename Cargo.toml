@@ -1,0 +1,66 @@
+# Root workspace wrapper for the authoritative Rust v0.3 core.
+# Keep the live kernel/common/vnode crates in Aether_OS_Nexus_Core_v.0.3/AetherOS/
+# until a reviewed migration explicitly moves them.
+[workspace]
+resolver = "2"
+default-members = ["Aether_OS_Nexus_Core_v.0.3/AetherOS/common"]
+members = [
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/kernel",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/tools/image_builder",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/common",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/libnexus-net",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/AetherOS_Coder/ADI",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/AetherOS_Coder/ARX",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/AetherOS_Coder/APM",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/gateway",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/dns-resolver",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/echo",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/file-manager",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/init-service",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/keyboard",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/logger",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/mail-service",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/model-runtime",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/net-bridge",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/net-stack",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/registry",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/shell",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/socket-api",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/test",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/vnode/vfs",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/Nexus/UI/vnode/display-compositor",
+    "Aether_OS_Nexus_Core_v.0.3/AetherOS/Nexus/UI/vnode/webview",
+]
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+serde_core = { version = "1.0", default-features = false, features = ["alloc"] }
+bootloader = { version = "=0.11.15", default-features = false }
+bootloader_api = { version = "=0.11.15", default-features = false }
+postcard = { version = "=1.1.3", default-features = false, features = ["alloc"] }
+linked_list_allocator = { version = "=0.10.5", default-features = false, features = ["use_spin"] }
+x86_64 = { version = "=0.14.13", default-features = false, features = ["instructions", "abi_x86_interrupt"] }
+spin = { version = "=0.9.8", default-features = false, features = ["mutex", "spin_mutex", "rwlock", "once", "lazy", "barrier"] }
+conquer-once = { version = "=0.4.0", default-features = false }
+sha2 = { version = "=0.10.9", default-features = false, features = ["force-soft-compact"] }
+smoltcp = { version = "=0.8.2", default-features = false, features = ["alloc", "proto-ipv4", "socket", "socket-tcp", "socket-udp", "medium-ethernet"] }
+serde = { version = "1.0.193", default-features = false, features = ["alloc", "derive"] }
+getrandom = { version = "=0.4.2", default-features = false, features = ["rdrand"] }
+
+[workspace.metadata]
+forbid-std = true
+feature-gates = { default = ["alloc"], alloc = [], serde = [] }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+
+[patch.crates-io]
+bootloader = { path = "Aether_OS_Nexus_Core_v.0.3/AetherOS/vendor/bootloader-0.11.15" }

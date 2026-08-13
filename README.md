@@ -1,204 +1,92 @@
+# AetherOS Nexus v0.4.0
 
-🌌 AetherOS Alpha — The Nexus Architecture
-Join the Aether. Build the Nexus.
+AetherOS Nexus v0.4.0 is a split repository containing two very different code paths:
 
-🚀 Project Vision & Mission
-AetherOS is not just another operating system; it's a Nexus Hybrid – a new class of OS designed from the ground up to redefine security, performance, and transparency. Our mission is to build a platform that is robust, user‑centric, and resilient in an increasingly complex digital world, empowering developers with unprecedented control and insight.
+1. **Authoritative Rust OS core (v0.3)** under `Aether_OS_Nexus_Core_v.0.3/AetherOS/`.
+2. **TypeScript/React Nexus UI shell (v0.4)** under `client/`, `server/`, `shared/`, and related root files.
 
-Traditional operating systems are prisoners of their history:
+The Rust kernel and its `common`/`vnode` crates are the source of truth for OS behavior. The v0.4 TypeScript/React interface is an experimental UI and development shell; it is not currently a bootable OS, kernel replacement, or complete user-space runtime.
 
-Windows is a monolithic labyrinth of legacy code.
+## Current Repository Status
 
-Linux is powerful but fragmented and requires deep expertise.
+- The functional Rust workspace lives in `Aether_OS_Nexus_Core_v.0.3/AetherOS/`.
+- The root `Cargo.toml` is a wrapper over that Rust workspace so basic Cargo commands can be run from the repository root without moving the core crates.
+- Root-level `kernel/` currently contains ABI contract/documentation support only and is not the authoritative kernel implementation.
+- Root-level TypeScript code is an optional Nexus UI/server prototype.
+- Claims such as fully immutable V-Nodes, production zero-copy IPC, complete zero-copy networking, AI-assisted driver translation, decentralized trust, and federation are roadmap goals unless specifically implemented and tested in the Rust core. See `docs/ROADMAP.md` for future goals.
 
-macOS is polished but closed and restrictive.
+## Repository Layout
 
-None of them are built for a world where drivers are sandboxed by default, IPC is visually inspectable, and applications are immutable, cryptographically verifiable entities.
-AetherOS aims to be that paradigm shift.
+```text
+.
+├── Cargo.toml                         # Root Rust workspace wrapper for the v0.3 OS core
+├── rust-toolchain.toml                 # Pins the unified nightly-2025-03-01 Rust toolchain
+├── Aether_OS_Nexus_Core_v.0.3/
+│   └── AetherOS/
+│       ├── Cargo.toml                  # Original Rust workspace manifest
+│       ├── common/                     # Shared no_std Rust APIs, syscall ABI, IPC helpers
+│       ├── kernel/                     # Authoritative Rust kernel implementation
+│       ├── vnode/                      # Rust V-Node/service crates
+│       ├── libnexus-net/               # Network support crate
+│       ├── tools/image_builder/        # Kernel/image tooling
+│       └── Nexus/UI/vnode/             # Rust UI-related V-Node experiments
+├── client/                             # Experimental TypeScript/React UI shell
+├── server/                             # Experimental Node/Express backend for the UI shell
+├── shared/                             # Shared TypeScript schemas/ABI descriptions
+├── docs/                               # Root architecture, ABI, and PR planning documents
+└── kernel/src/syscall/                 # Root-level ABI contract notes, not the live kernel
+```
 
-🧬 Core Architectural Pillars (Alpha Complete)
-Memory Safety by Default — Rust‑based Nexus Core eliminates most classic kernel vulnerabilities.
+## Building from the Repository Root
 
-Nexus Hybrid Microkernel — Minimal kernel handling memory, scheduling, and IPC.
+Root and core Rust toolchain files are pinned to `nightly-2025-03-01`, matching `Aether_OS_Nexus_Core_v.0.3/AetherOS/rust-toolchain.toml`. The vendored bootloader keeps its own toolchain and should only be changed in a reviewed bootloader-specific update.
 
-Capability‑Based Security — No root user; every V‑Node has explicit rights.
+The safest root-level Rust check builds the shared `common` crate:
 
-Zero‑Copy IPC — Shared memory with transfer‑of‑ownership semantics.
+```bash
+cargo check -p aetheros_common
+```
 
-Zero‑Trust Runtime — Every operation is validated.
+The full bare-metal kernel build still uses the AetherOS target JSON and nightly `-Zbuild-std` flags:
 
-Immutable V‑Nodes — Cryptographically signed, content‑addressed application bundles.
-
-Zero‑Copy Networking — NIC → application with minimal CPU overhead.
-
-Visual Observability — Real‑time visualization of IPC flows and V‑Node states.
-
-Aether Driver Intelligence (ADI) — AI‑assisted translation of unsafe drivers into sandboxed V‑Nodes.
-
-Decentralized Trust Model — Merkle Trees + CAS.
-
-Resource Quotas & Admission Control — Enforced per V‑Node.
-
-⚠️ Experimental Replit‑Style Interface (Concept Only)
-AetherOS Nexus v0.4 introduces an experimental Replit‑style development interface included as a conceptual preview of the future user‑space environment.
-
-It is not functional.
-
-It serves as a visual and architectural prototype only.
-
-It demonstrates how developers may interact with V‑Nodes, IPC flows, and system services in future releases.
-
-This interface is included for exploration and early design validation.
-
-📁 Project Structure
-Код
-aetheros/
-├─ Cargo.toml
-├─ kernel/
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ arch/x86_64/
-│  │  ├─ drivers/
-│  │  ├─ memory/
-│  │  ├─ task/
-│  │  ├─ ipc/
-│  │  ├─ console.rs
-│  │  ├─ timer.rs
-│  │  ├─ caps.rs
-│  │  ├─ syscall.rs
-│  │  ├─ lib.rs
-│  │  ├─ main.rs
-│  │  ├─ aetherfs.rs
-│  │  ├─ elf.rs
-│  │  └─ vnode_loader.rs
-│  └─ linker.ld
-├─ common/
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ ipc/
-│  │  ├─ syscall.rs
-│  │  └─ lib.rs
-├─ vnode/
-│  ├─ dns-resolver/
-│  ├─ file-manager/
-│  ├─ init-service/
-│  ├─ mail-service/
-│  ├─ model-runtime/
-│  ├─ net-bridge/
-│  ├─ net-stack/
-│  ├─ registry/
-│  ├─ shell/
-│  ├─ socket-api/
-│  └─ vfs/
-🛠️ Build & Run Guide (bootloader_api 0.11)
-Prerequisites
-Rust nightly
-
-rust-src and llvm-tools-preview
-
-QEMU
-
-bash
-rustup toolchain install nightly-2024-12-01
-rustup override set nightly-2024-12-01
-rustup component add rust-src
-rustup component add llvm-tools-preview
-Build kernel
-bash
-cd AetherOS
-cargo +nightly-2024-12-01 build --release --target .cargo/aetheros-x86_64.json \
+```bash
+cargo build \
+  -p aetheros-kernel \
+  --release \
+  --target Aether_OS_Nexus_Core_v.0.3/AetherOS/.cargo/aetheros-x86_64.json \
   -Zbuild-std=core,alloc,compiler_builtins \
-  -Zbuild-std-features=compiler-builtins-mem \
-  -Zjson-target-spec
-Or:
+  -Zbuild-std-features=compiler-builtins-mem
+```
 
-bash
+The original helper remains available:
+
+```bash
+cd Aether_OS_Nexus_Core_v.0.3/AetherOS
 ./scripts/build_kernel_image.sh
-Run in QEMU
-bash
-qemu-system-x86_64 -kernel target/aetheros-x86_64/release/aetheros-kernel
-Workspace helpers
-bash
-./scripts/build_all.sh
-./scripts/build_initrd.sh
-./scripts/run_qemu.sh
-🔧 Troubleshooting
-If validating user‑space V‑Nodes:
+```
 
-bash
-cd AetherOS
-cargo build -p registry -p init-service
-If you see:
+## Running the TypeScript/React Shell
 
-Код
-WARNING: `CARGO_MANIFEST_DIR` env variable not set
-error: `.json` target specs require -Zjson-target-spec
-You may be:
+The v0.4 UI shell is separate from the Rust kernel and should be treated as an experimental web application:
 
-outside AetherOS/
+```bash
+npm run dev
+```
 
-on the wrong nightly
+Use TypeScript checks for the UI/server code:
 
-mixing toolchains
+```bash
+npm run check
+```
 
-missing -Zjson-target-spec
+## Architecture Documentation
 
-Use the helper scripts for consistency.
+- `docs/BUILDING.md` documents the unified Rust toolchain and root/core build commands.
+- `docs/ARCHITECTURE.md` describes the current split architecture, root support-directory boundaries, and roadmap boundaries.
+- `docs/ROADMAP.md` collects future goals and aspirational claims that are not current repository guarantees.
+- `docs/SYSCALL-ABI.md` documents the current syscall ABI version and stabilization expectations.
+- `docs/PR-ROADMAP.md` turns the repository audit into a staged PR plan.
 
-📘 NotebookLM — Centralized Knowledge Hub
-NotebookLM aggregates all AetherOS Nexus Core v0.3 documentation:
+## Security
 
-Architecture
-
-Security & cryptography
-
-Networking & AetherNet
-
-V‑Node analysis
-
-Rust safety
-
-Diagrams & visualizations
-
-Summaries, tests, reports
-
-🔗 https://notebooklm.google.com/notebook/be0fd2b7-ed9f-4bbb-9f09-eb93b779d822 (notebooklm.google.com in Bing)
-
-⚠️ Current Limitations
-AetherOS Nexus Core v0.3 is early alpha and lacks:
-
-CI/CD
-
-Automated tests
-
-Linting & formatting
-
-Security policies
-
-Contribution guidelines
-
-Roadmap includes GitHub Actions, test suites, formatting standards, and a project roadmap.
-
-🎯 v0.4 Integration Priority — ABI Synchronization
-First PR should focus on:
-
-64‑bit syscall3 ABI
-
-Pointer‑width validation
-
-Argument marshalling
-
-Minimal IPC roundtrip test
-
-This stabilizes the foundation for all V‑Node services.
-
-🧭 Recommended Execution Order After v0.3
-API Documentation Freeze
-
-Live ISO Bring‑up
-
-Performance Iteration
-
-This minimizes rework and ensures stable integration.
-
-Join the Aether. Build the Nexus.
+See `SECURITY.md` for supported code paths, reporting guidance, and an honest summary of implemented vs. planned security properties.

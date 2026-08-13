@@ -42,4 +42,4 @@ pub mod mail_ipc;
 pub mod ai_governor_ipc;
 
 
-pub use types::IpcMessage;
+pub use types::{IpcBufferDescriptor, IpcMessage, IpcMessageDescriptor, IpcPayloadKind};

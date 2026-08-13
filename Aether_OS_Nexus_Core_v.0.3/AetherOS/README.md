@@ -1,104 +1,63 @@
-# 🌌 AetherOS Alpha — The Nexus Architecture
+# AetherOS Rust Core Workspace
 
-_Join the Aether. Build the Nexus._
+This is the active Rust workspace for the AetherOS Nexus core that was inherited from v0.3. In the combined v0.4 repository, the canonical status summary is the root [`README.md`](../../README.md), and the current architecture boundaries are documented in [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md).
 
-## 🚀 Project Vision & Mission
+Use this README for workspace-local build commands. Broader product, architecture, and roadmap claims should remain in the root docs so the repository has one source of truth.
 
-AetherOS is not just another operating system; it's a **Nexus Hybrid** – a new class of operating system designed from the ground up to redefine security, performance, and transparency in computing. Our mission is to build a platform that is robust, user-centric, and resilient in an increasingly complex digital world, empowering developers and users with unprecedented control and insight.
+## Current Status
 
-Traditional operating systems are prisoners of their history:
+- `kernel/` contains the authoritative Rust kernel implementation.
+- `common/` contains shared `no_std` APIs, syscall constants, ABI wrappers, and IPC helpers.
+- `vnode/` contains V-Node/service crates and experiments.
+- `libnexus-net/` contains network support used by the Rust core.
+- `tools/image_builder/` contains kernel/image tooling.
 
-*   **Windows** is a monolithic labyrinth of legacy code, constantly battling security vulnerabilities and resource inefficiency.
-*   **Linux** is powerful but fragmented, often requiring deep technical expertise for optimal configuration.
-*   **macOS** offers a polished experience but confines users to a closed ecosystem, limiting freedom and transparency.
+The repository-root TypeScript/React UI shell is separate from this workspace. It is an experimental development shell, not a replacement for the Rust kernel.
 
-None of them are built for a world where drivers are sandboxed by default, inter-process communication (IPC) is visually inspectable, and applications are immutable, cryptographically verifiable entities. AetherOS aims to be that paradigm shift.
+## Roadmap Boundaries
 
-## 🧬 Core Architectural Pillars (Alpha Complete)
+AetherOS explores a Nexus hybrid microkernel, capability-based security, V-Nodes, efficient IPC, and network service isolation. Older claims such as "alpha complete," fully immutable V-Nodes, production zero-copy IPC, complete zero-copy networking, visual observability, AI-assisted driver translation, decentralized trust, or swarm federation should be treated as roadmap language unless a current implementation and test proves the specific behavior.
 
-AetherOS is founded on revolutionary principles that leverage modern systems programming and cryptographic guarantees, demonstrated across several stages:
+See [`docs/ROADMAP.md`](../../docs/ROADMAP.md) for consolidated future goals.
 
-1.  **Memory Safety by Default**: The entire Nexus Core is written in **Rust**, eliminating 70% of classic kernel vulnerabilities.
-2.  **Nexus Hybrid Microkernel**: A minimal, capability-secured microkernel manages only memory, CPU scheduling, and IPC.
-3.  **Capability-Based Security**: No `root` user. Every V-Node possesses only explicitly granted rights.
-4.  **Zero-Copy IPC**: IPC is designed for lightning speed using shared memory with transfer-of-ownership semantics.
-5.  **Zero-Trust Runtime**: No component is inherently trusted; every operation is validated.
-6.  **Immutable Infrastructure (V-Nodes)**: Applications as cryptographically signed, content-addressed, immutable bundles.
-7.  **Zero-Copy Networking**: Data moves from NIC to application without CPU-intensive copying.
-8.  **Visual Observability**: Real-time, interactive visualization of IPC flows, V-Node states, and resource usage.
-9.  **Aether Driver Intelligence (ADI)**: AI-assisted system to translate existing drivers into safe, sandboxed V-Nodes.
-10. **Decentralized Trust Model**: Cryptographic trust with Merkle Trees and Content-Addressable Storage.
-11. **Resource Quotas & Admission Control**: Every V-Node declares its resource needs, enforced by the Nexus Core.
-12. **Aether Swarm Federation**: UDP-based ASP discovery, gossip anti-entropy snapshot sync, and capability-gated remote V-Node execution.
-
-## 📁 Project Structure
+## Workspace Layout
 
 ```text
-aetheros/
-├─ Cargo.toml                  # Workspace root
-├─ kernel/                     # The Nexus Core (operating system kernel)
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ arch/x86_64/         # x86_64 architecture-specific code (boot, GDT, IDT, paging, DMA, IRQ)
-│  │  ├─ drivers/             # Device drivers (e.g., serial)
-│  │  ├─ memory/              # Memory management (frame allocator, page allocator)
-│  │  ├─ task/                # Task management (TCB, scheduler)
-│  │  ├─ ipc/                 # Inter-Process Communication (mailbox)
-│  │  ├─ console.rs           # Kernel console output
-│  │  ├─ timer.rs             # Kernel timer
-│  │  ├─ caps.rs              # Capability definitions
-│  │  ├─ syscall.rs           # Syscall dispatcher
-│  │  ├─ lib.rs               # Kernel library entry point, module declarations
-│  │  ├─ main.rs              # Kernel main entry point (_start, panic_handler)
-│  │  ├─ aetherfs.rs          # AetherFS conceptual implementation
-│  │  ├─ elf.rs               # ELF loader conceptual implementation
-│  │  └─ vnode_loader.rs      # V-Node loader conceptual implementation
-│  └─ linker.ld
-├─ common/                     # Common utilities and IPC message definitions for kernel and V-Nodes
-│  ├─ Cargo.toml
-│  ├─ src/
-│  │  ├─ ipc/                  # IPC messaging definitions
-│  │  ├─ syscall.rs            # User-space syscall wrappers
-│  │  └─ lib.rs                # Common library entry point
-├─ vnode/                      # Example V-Node applications
-│  ├─ dns-resolver/             # DNS Resolver V-Node
-│  ├─ file-manager/             # File Manager V-Node
-│  ├─ init-service/             # Init Service V-Node
-│  ├─ mail-service/             # Mail Service V-Node
-│  ├─ model-runtime/            # Model Runtime V-Node
-│  ├─ net-bridge/               # Network Bridge Driver V-Node
-│  ├─ net-stack/                # AetherNet Network Stack V-Node
-│  ├─ registry/                 # Package Registry V-Node
-│  ├─ shell/                    # Shell V-Node
-│  ├─ socket-api/               # Socket API V-Node
-│  └─ vfs/                      # Virtual File System V-Node
+AetherOS/
+├─ Cargo.toml                  # Rust workspace manifest
+├─ kernel/                     # Authoritative Rust kernel implementation
+├─ common/                     # Shared no_std APIs, syscall ABI, IPC helpers
+├─ vnode/                      # V-Node/service crates and experiments
+├─ libnexus-net/               # Network support crate
+├─ tools/image_builder/        # Kernel/image tooling
+└─ Nexus/UI/vnode/             # Rust UI-related V-Node experiments
 ```
 
-## 🛠️ Build & Run Guide (bootloader_api 0.11)
+## Build and Run Guidance
 
-This project uses the modern `bootloader_api` flow. Legacy `bootloader` 0.10 / `bootimage` commands are not used.
-
-> If you run `cargo bootimage` with `bootloader 0.11.15`, it will fail because the legacy `bootimage` tool does not support the newer bootloader metadata flow.
+For the current unified build model, start with [`docs/BUILDING.md`](../../docs/BUILDING.md). This workspace uses the `bootloader_api` flow; legacy `bootloader` 0.10 / `bootimage` commands are not used.
 
 ### Prerequisites
 
-- Rust nightly
-- `rust-src` and `llvm-tools-preview` components for nightly
-- QEMU (`qemu-system-x86_64`)
+- Rust `nightly-2025-03-01`
+- `rust-src` and `llvm-tools-preview` for the pinned nightly
+- QEMU (`qemu-system-x86_64`) for runtime smoke tests
 
 ```bash
 rustup toolchain install nightly-2025-03-01
-rustup override set nightly-2025-03-01
-rustup component add rust-src
-rustup component add llvm-tools-preview
+rustup component add rust-src llvm-tools-preview --toolchain nightly-2025-03-01
 ```
 
-### Build kernel
+### Build the kernel
 
-From `AetherOS/`:
+From this `AetherOS/` directory:
 
 ```bash
-cargo +nightly-2025-03-01 build --release --target x86_64-unknown-none.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem
+cargo +nightly-2025-03-01 build \
+  --release \
+  --target .cargo/aetheros-x86_64.json \
+  -Zbuild-std=core,alloc,compiler_builtins \
+  -Zbuild-std-features=compiler-builtins-mem
 ```
 
 Or use the helper:
@@ -107,11 +66,7 @@ Or use the helper:
 ./scripts/build_kernel_image.sh
 ```
 
-### Run in QEMU
-
-This kernel is a bare-metal ELF image and is not directly bootable with `qemu-system-x86_64 -kernel` unless it is wrapped by a compatible bootloader or UEFI image.
-
-### Workspace helper flow
+### Run and helper commands
 
 ```bash
 ./scripts/build_all.sh
@@ -119,9 +74,7 @@ This kernel is a bare-metal ELF image and is not directly bootable with `qemu-sy
 ./scripts/run_qemu.sh
 ```
 
-### Makefile shortcuts
-
-From `AetherOS/`:
+Makefile shortcuts are also available from this directory:
 
 ```bash
 make kernel   # build kernel
@@ -131,64 +84,14 @@ make run      # run in QEMU
 make test     # non-interactive QEMU smoke test
 ```
 
+## Troubleshooting
 
-## 🔧 Troubleshooting workspace build errors
-
-If you are validating user-space V-Node services (such as `registry` and `init-service`), build those packages directly from the workspace root:
+If you are validating user-space V-Node services, build those packages directly from this workspace root:
 
 ```bash
-cd AetherOS
 cargo build -p registry -p init-service
 ```
 
-This avoids mixing kernel/nightly-only targets with host-side service validation and provides faster feedback for IPC/API-level changes.
+If dependency builds fail because standard prelude types such as `Result` or `Option` are missing, check for custom `RUSTFLAGS`, `CARGO_ENCODED_RUSTFLAGS`, or `CARGO_BUILD_RUSTFLAGS` leaking into dependency builds. The provided build scripts clear those variables before invoking Cargo.
 
-
-If you see many errors from dependencies like `serde_core` such as:
-
-```text
-error[E0412]: cannot find type `Result` in this scope
-error[E0412]: cannot find type `Option` in this scope
-```
-
-check whether your shell exports custom `RUSTFLAGS` / `CARGO_ENCODED_RUSTFLAGS` / `CARGO_BUILD_RUSTFLAGS` (especially nightly-only flags like
-`-Z no-implicit-prelude`). Those flags can leak into dependency builds and break normal prelude imports.
-The provided build scripts now clear those variables before invoking Cargo.
-
-If you see:
-
-```text
-error: unknown `-Z` flag specified: json-target-spec
-```
-
-you are likely using stale build instructions, `bootimage`/legacy metadata flow, an unpinned nightly, or a mixed toolchain
-invocation where `cargo` and `rustc` come from different nightlies. This repo uses `bootloader_api` and
-`cargo +nightly-2025-03-01 build` directly (without `-Zjson-target-spec`).
-Run `./scripts/build_kernel_image.sh` (or the build command above) instead of `cargo bootimage`.
-
-If you see:
-
-```text
-warning: user-defined alias `bootimage` is shadowing an external subcommand
-error: the argument '--release' cannot be used multiple times
-```
-
-you likely have a global Cargo alias (for example in `~/.cargo/config.toml`) named `bootimage`
-that injects `--release`, while your command also passes `--release`.
-This repository intentionally does **not** define a `bootimage` alias.
-
-Recommended fix:
-
-1. Remove or rename the global alias from `~/.cargo/config` or `~/.cargo/config.toml`.
-2. Use the pinned build flow from this repo:
-   - `./scripts/build_kernel_image.sh`
-   - or `cargo +nightly-2025-03-01 build --release --target x86_64-unknown-none.json -Zbuild-std=core,alloc,compiler_builtins -Zbuild-std-features=compiler-builtins-mem`
-
-To inspect active alias configuration:
-
-```bash
-cat ~/.cargo/config
-cat ~/.cargo/config.toml
-```
-
-**Join the Aether. Build the Nexus.**
+If you see `unknown -Z flag specified: json-target-spec`, use the pinned `nightly-2025-03-01` toolchain and the build commands above. If you see a `bootimage` alias conflict, remove or rename the global Cargo alias and avoid legacy `cargo bootimage` instructions for this workspace.
